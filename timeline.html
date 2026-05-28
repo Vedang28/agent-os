@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent OS — Development Timeline</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0d14;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 36px 28px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 24px; font-weight: 800; color: #f8fafc; margin-bottom: 4px; }
+  .meta { font-size: 13px; color: #475569; margin-bottom: 30px; }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .summary-card {
+    background: #131720;
+    border: 1px solid #1e2535;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .summary-card .val { font-size: 26px; font-weight: 800; color: #f8fafc; line-height: 1; }
+  .summary-card .lbl { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.07em; }
+
+  .phase {
+    background: #0f1420;
+    border: 1px solid #1e2535;
+    border-radius: 14px;
+    margin-bottom: 22px;
+    overflow: hidden;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    border-bottom: 1px solid #1e2535;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .phase-header:hover { background: #131720; }
+  .phase-num {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .phase-title { font-size: 17px; font-weight: 700; color: #f1f5f9; flex: 1; }
+  .phase-status {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .status-progress { background: #3d3000; color: #fbbf24; }
+  .status-not-started { background: #1e2535; color: #475569; }
+  .chevron {
+    font-size: 14px;
+    color: #475569;
+    transition: transform 0.25s;
+    flex-shrink: 0;
+  }
+  .phase.open .chevron { transform: rotate(90deg); }
+  .phase-body {
+    padding: 20px 22px;
+    display: none;
+  }
+  .phase.open .phase-body { display: block; }
+  .phase-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+  .phase-cols-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .phase-col-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #475569;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1e2535;
+  }
+  .task {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #131720;
+    font-size: 13px;
+  }
+  .task:last-child { border-bottom: none; }
+  .task-name { color: #cbd5e1; flex: 1; }
+  .task-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .tag-agent { background: #1e1347; color: #a78bfa; }
+  .tag-infra { background: #0d3d2e; color: #34d399; }
+  .tag-tool { background: #082d3a; color: #22d3ee; }
+  .tag-brain { background: #3d2000; color: #fbbf24; }
+  .tag-dept { background: #3d0d18; color: #f87171; }
+  .tag-io { background: #230d3d; color: #c084fc; }
+
+  .goal-box {
+    background: #0d1520;
+    border: 1px solid #1e3a5f;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: #93c5fd;
+  }
+  .goal-box strong { color: #bfdbfe; }
+
+  .exit-gate {
+    background: #0d1a15;
+    border: 1px solid #1e3d2e;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: #86efac;
+  }
+  .exit-gate strong { color: #bbf7d0; }
+  .exit-gate ul {
+    margin: 6px 0 0 16px;
+    list-style: none;
+  }
+  .exit-gate li { padding: 2px 0; }
+  .exit-gate li::before { content: "\2610 "; color: #475569; }
+
+  .agents-built {
+    background: #131720;
+    border: 1px solid #1e2535;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 14px;
+  }
+  .agents-built-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #475569;
+    margin-bottom: 8px;
+  }
+  .agent-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .agent-chip {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+
+  .merge-point {
+    background: #1a0d2e;
+    border: 1px solid #2d1e4a;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: #c4b5fd;
+  }
+  .merge-point strong { color: #ddd6fe; }
+
+  .divider { height: 1px; background: #1e2535; margin: 28px 0; }
+
+  .arch-section {
+    margin-top: 32px;
+  }
+  .arch-section h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 16px;
+  }
+  .arch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .arch-card {
+    background: #131720;
+    border: 1px solid #1e2535;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .arch-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 8px;
+  }
+  .arch-card-body {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.7;
+  }
+
+  .layer-stack {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 0;
+    margin-top: 16px;
+  }
+  .layer-num {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1e2535;
+    text-align: center;
+    padding-top: 10px;
+  }
+  .layer-bar {
+    border-left: 2px solid #1e2535;
+    padding: 10px 16px;
+    margin-bottom: 0;
+  }
+  .layer-bar-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .layer-bar-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* Phase colour schemes */
+  .p0 .phase-num  { background: #1e3a2e; color: #6ee7b7; }
+  .p0 .phase-status { background: #3d3000; color: #fbbf24; }
+
+  .p1 .phase-num  { background: #082d3a; color: #22d3ee; }
+  .p1 .phase-status { background: #1e2535; color: #475569; }
+
+  .p2 .phase-num  { background: #230d3d; color: #c084fc; }
+  .p2 .phase-status { background: #1e2535; color: #475569; }
+
+  .p3 .phase-num  { background: #0c2a50; color: #60a5fa; }
+  .p3 .phase-status { background: #1e2535; color: #475569; }
+
+  .p4 .phase-num  { background: #3d2000; color: #fbbf24; }
+  .p4 .phase-status { background: #1e2535; color: #475569; }
+
+  .p5 .phase-num  { background: #1e1347; color: #a78bfa; }
+  .p5 .phase-status { background: #1e2535; color: #475569; }
+
+  .p6 .phase-num  { background: #0d3d2e; color: #34d399; }
+  .p6 .phase-status { background: #1e2535; color: #475569; }
+
+  .p7 .phase-num  { background: #3d1800; color: #fb923c; }
+  .p7 .phase-status { background: #1e2535; color: #475569; }
+
+  .p8 .phase-num  { background: #3d0d18; color: #f87171; }
+  .p8 .phase-status { background: #1e2535; color: #475569; }
+
+  @media (max-width: 768px) {
+    .phase-cols, .phase-cols-2 { grid-template-columns: 1fr; }
+    .summary { grid-template-columns: 1fr 1fr; }
+    .arch-grid { grid-template-columns: 1fr; }
+    .phase-header { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Agent OS — Development Timeline</h1>
+<p class="meta">Autonomous multi-agent company &middot; Society-of-mind architecture &middot; LangGraph + Python 3.12 &middot; Built with Claude Code</p>
+
+<div class="summary">
+  <div class="summary-card"><div class="val">9</div><div class="lbl">Phases</div></div>
+  <div class="summary-card"><div class="val">92</div><div class="lbl">Total Agents</div></div>
+  <div class="summary-card"><div class="val">28</div><div class="lbl">Departments</div></div>
+  <div class="summary-card"><div class="val">9</div><div class="lbl">Divisions</div></div>
+</div>
+
+<!-- ===== PHASE 0 ===== -->
+<div class="phase p0 open">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 0</span>
+    <div>
+      <div class="phase-title">Foundation &mdash; Repo, Protocol, State, CI</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Both tracks together &middot; No split yet</div>
+    </div>
+    <span class="phase-status status-progress">IN PROGRESS</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Lay the infrastructure skeleton. Monorepo structure, typed state contract, empty LangGraph, telemetry wiring, CI harness, and the dev-workflow memory system. Nothing fancy &mdash; just the bones that everything else builds on.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Orchestration &amp; State</div>
+        <div class="task"><span class="task-name">Monorepo + layered folder structure</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name"><code>Agent</code> protocol (interface every agent implements)</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name">Agent registry &mdash; no if-elif dispatch</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name"><code>AgentState</code> typed schema (TypedDict)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Empty LangGraph &mdash; compiles + runs no-op</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Tools &amp; Telemetry</div>
+        <div class="task"><span class="task-name"><code>Tool</code> base class with <code>Permission</code> enum</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name"><code>telemetry.py</code> skeleton (structured logging)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Python 3.12 env, pre-commit, ruff/black</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name"><code>pytest</code> harness + CI pipeline</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Dev Memory System</div>
+        <div class="task"><span class="task-name"><code>SESSION_LOG.md</code> &mdash; append-only log</span><span class="task-tag tag-brain">MEMORY</span></div>
+        <div class="task"><span class="task-name"><code>DECISIONS.md</code> &mdash; architectural ADRs</span><span class="task-tag tag-brain">MEMORY</span></div>
+        <div class="task"><span class="task-name"><code>memory.js</code> CLI (log/decide/recent/search)</span><span class="task-tag tag-brain">MEMORY</span></div>
+        <div class="task"><span class="task-name">Custom commands: /start-phase, /exit-gate, /log, /reflect</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+    </div>
+    <div class="exit-gate">
+      <strong>Exit Gate &mdash; must pass before Phase 1:</strong>
+      <ul>
+        <li>Monorepo + layered folders created</li>
+        <li><code>Agent</code> protocol + empty registry load</li>
+        <li><code>AgentState</code> typed schema defined</li>
+        <li>Empty LangGraph compiles and runs a no-op end to end</li>
+        <li><code>telemetry.py</code> skeleton in place</li>
+        <li><code>pytest</code> green, CI passes</li>
+        <li>Memory system bootstrapped (<code>node .claude/memory/memory.js recent</code> runs)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 1 ===== -->
+<div class="phase p1">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 1</span>
+    <div>
+      <div class="phase-title">Brain + Tools</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Parallel tracks begin &middot; Track A: Spine &middot; Track B: Edges</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Give the system its memory and its hands. Track A builds the Obsidian + Qdrant brain so agents can read-before-act. Track B builds permission-gated tools so agents can do things safely.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Track A &mdash; Brain (Spine)</div>
+        <div class="task"><span class="task-name"><code>obsidian.py</code> &mdash; note schema, write/read</span><span class="task-tag tag-brain">BRAIN</span></div>
+        <div class="task"><span class="task-name"><code>qdrant.py</code> &mdash; embed + semantic search</span><span class="task-tag tag-brain">BRAIN</span></div>
+        <div class="task"><span class="task-name"><code>librarian.py</code> &mdash; read-before-act query API</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name">Note schema + backlinks</span><span class="task-tag tag-brain">BRAIN</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Track B &mdash; Tools (Edges)</div>
+        <div class="task"><span class="task-name"><code>BashTool</code> &mdash; permission-gated shell</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name"><code>FileTool</code> &mdash; file read/write/delete</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name"><code>WebTool</code> &mdash; HTTP requests + scraping</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Tool registry (shared, DRY)</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Each tool declares its <code>Permission</code> level</span><span class="task-tag tag-tool">TOOL</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Agents Built</div>
+        <div class="agent-chips">
+          <span class="agent-chip" style="background:#082d3a;color:#22d3ee;">Brain Librarian</span>
+        </div>
+        <div style="margin-top:14px">
+          <div class="phase-col-title">Key Decisions</div>
+          <div class="task"><span class="task-name">Obsidian = human-readable graph (markdown)</span></div>
+          <div class="task"><span class="task-name">Qdrant = semantic retrieval (vectors)</span></div>
+          <div class="task"><span class="task-name">Every tool declares a Permission</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="merge-point"><strong>Merge point:</strong> An agent stub can (a) query the brain and (b) call a permission-gated tool.</div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>Write a note &rarr; retrieve it semantically from Qdrant</li>
+        <li>A SHELL-permission tool blocks without Guardian approval</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 2 ===== -->
+<div class="phase p2">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 2</span>
+    <div>
+      <div class="phase-title">Spine + First Department (Engineering)</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Track A: Orchestration &middot; Track B: Engineering triad</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Build the company's central nervous system and prove the pattern with one real department. The Orchestrator decomposes requests, the Dispatcher assigns lanes, and the Engineering triad runs the full proposer &rarr; worker &rarr; critic loop.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Track A &mdash; Orchestration (Spine)</div>
+        <div class="task"><span class="task-name">Company <code>StateGraph</code> (LangGraph)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name"><code>Orchestrator</code> node &mdash; decompose + route</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name"><code>Dispatcher</code> &mdash; intent + lane assignment</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name">Checkpointer wired (SQLite)</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Track B &mdash; Engineering Dept (Edges)</div>
+        <div class="task"><span class="task-name"><code>Architect</code> (proposer) &mdash; designs before code</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name"><code>Scaffolder</code> (worker) &mdash; writes the code</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name"><code>CodeDoctor</code> (critic) &mdash; catches errors</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name">Conditional edge: approve &rarr; end / revise &rarr; worker</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name"><code>max_revisions = 3</code> &mdash; bounded critic loop</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Agents Built (5)</div>
+        <div class="agent-chips">
+          <span class="agent-chip" style="background:#230d3d;color:#c084fc;">Orchestrator (CEO)</span>
+          <span class="agent-chip" style="background:#230d3d;color:#c084fc;">Dispatcher</span>
+          <span class="agent-chip" style="background:#230d3d;color:#c084fc;">Architect</span>
+          <span class="agent-chip" style="background:#230d3d;color:#c084fc;">Scaffolder</span>
+          <span class="agent-chip" style="background:#230d3d;color:#c084fc;">CodeDoctor</span>
+        </div>
+        <div style="margin-top:14px">
+          <div class="phase-col-title">Pattern Proven</div>
+          <div class="task"><span class="task-name">Sub-graph per department</span></div>
+          <div class="task"><span class="task-name">Proposer &rarr; Worker &rarr; Critic triad</span></div>
+          <div class="task"><span class="task-name">Lane discipline (instant / fast / deep)</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="merge-point"><strong>Merge point:</strong> Engineering sub-graph registers and plugs into the company graph as one node.</div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>Deep request flows: User &rarr; Dispatcher &rarr; Orchestrator &rarr; Engineering triad &rarr; approved output</li>
+        <li>A deliberately bad draft triggers exactly one revise loop then passes</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 3 ===== -->
+<div class="phase p3">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 3</span>
+    <div>
+      <div class="phase-title">Autonomous Engine &mdash; Daemon + Intelligence</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Track A: Daemon heartbeat &middot; Track B: Intelligence department</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Make the system run continuously without human prompting. The daemon ticks every 15&ndash;20 minutes, checkpoints survive restarts, and the Intelligence department autonomously gathers and analyzes trends.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Track A &mdash; Daemon (Spine)</div>
+        <div class="task"><span class="task-name"><code>daemon.py</code> &mdash; heartbeat (15&ndash;20 min tick)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Checkpoint persistence (LangGraph checkpointer)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Resume-after-restart (kill &rarr; resume)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Token + wall-clock budget per tick</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Track B &mdash; Intelligence Dept (Edges)</div>
+        <div class="task"><span class="task-name"><code>Scout</code> (proposer) &mdash; HN / X / GitHub / RSS</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name"><code>Analyst</code> (worker) &mdash; deep-dives top items</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name"><code>Skeptic</code> (critic) &mdash; challenges hype, verifies</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name">Writes briefings to the brain</span><span class="task-tag tag-brain">BRAIN</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Agents Built (3)</div>
+        <div class="agent-chips">
+          <span class="agent-chip" style="background:#0c2a50;color:#60a5fa;">Scout</span>
+          <span class="agent-chip" style="background:#0c2a50;color:#60a5fa;">Analyst</span>
+          <span class="agent-chip" style="background:#0c2a50;color:#60a5fa;">Skeptic</span>
+        </div>
+        <div style="margin-top:14px">
+          <div class="phase-col-title">Autonomy Unlocked</div>
+          <div class="task"><span class="task-name">System runs without human prompting</span></div>
+          <div class="task"><span class="task-name">Survives process kills</span></div>
+          <div class="task"><span class="task-name">Daily briefings auto-generated</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="merge-point"><strong>Merge point:</strong> The daemon tick triggers the Intelligence sub-graph automatically.</div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>Kill the process mid-tick &rarr; it resumes and completes</li>
+        <li>A daily briefing note appears in the brain</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 4 ===== -->
+<div class="phase p4">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 4</span>
+    <div>
+      <div class="phase-title">Learning Loop + Guardian</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Track A: Reflector &middot; Track B: Guardian safety</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Make the system learn from its own outcomes and stay safe. The Reflector improves playbooks from experience; the Guardian enforces permission gates and provides a kill switch for destructive actions.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Track A &mdash; Reflector (Spine)</div>
+        <div class="task"><span class="task-name"><code>Reflector</code> agent &mdash; reviews outcomes in brain</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name">Pattern detection (what worked, what failed)</span><span class="task-tag tag-brain">BRAIN</span></div>
+        <div class="task"><span class="task-name">Writes improved playbooks to brain</span><span class="task-tag tag-brain">BRAIN</span></div>
+        <div class="task"><span class="task-name">Proposers read playbooks via read-before-act</span><span class="task-tag tag-agent">AGENT</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Track B &mdash; Guardian (Edges)</div>
+        <div class="task"><span class="task-name"><code>Guardian</code> agent &mdash; permission gates</span><span class="task-tag tag-agent">AGENT</span></div>
+        <div class="task"><span class="task-name">Human-in-the-loop interrupt (LangGraph pause/resume)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Kill switch for destructive actions</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Secret protection</span><span class="task-tag tag-tool">TOOL</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Agents Built (2)</div>
+        <div class="agent-chips">
+          <span class="agent-chip" style="background:#3d2000;color:#fbbf24;">Reflector</span>
+          <span class="agent-chip" style="background:#3d2000;color:#fbbf24;">Guardian</span>
+        </div>
+        <div style="margin-top:14px">
+          <div class="phase-col-title">System Improves By</div>
+          <div class="task"><span class="task-name">Improving its notes, not retraining models</span></div>
+          <div class="task"><span class="task-name">Every 5+ outcomes &rarr; reflector runs</span></div>
+          <div class="task"><span class="task-name">Destructive actions always gated</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="merge-point"><strong>Merge point:</strong> A low-scoring outcome produces an improved playbook on the next run; a destructive tool call pauses for approval.</div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>Measurable improvement on a repeated task after reflection</li>
+        <li>No destructive action executes without an approval step</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 5 ===== -->
+<div class="phase p5">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 5</span>
+    <div>
+      <div class="phase-title">Dashboard + Voice I/O</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Track A: FastAPI + WebSocket &middot; Track B: STT / TTS</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Give the system a face and a voice. The dashboard streams agent activity live via WebSocket. Voice I/O lets you speak requests and hear results, with ACK-first so deep tasks never block the voice thread.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Track A &mdash; Dashboard Backend (Spine)</div>
+        <div class="task"><span class="task-name">FastAPI + WebSocket backend</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Live agent status streaming</span><span class="task-tag tag-io">I/O</span></div>
+        <div class="task"><span class="task-name">Tool call stream (real-time)</span><span class="task-tag tag-io">I/O</span></div>
+        <div class="task"><span class="task-name">Brain browser (view Obsidian notes)</span><span class="task-tag tag-io">I/O</span></div>
+        <div class="task"><span class="task-name">Integrations tab</span><span class="task-tag tag-io">I/O</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Track B &mdash; Voice I/O (Edges)</div>
+        <div class="task"><span class="task-name">STT input (speech-to-text)</span><span class="task-tag tag-io">I/O</span></div>
+        <div class="task"><span class="task-name">Streaming TTS output (sentence-boundary)</span><span class="task-tag tag-io">I/O</span></div>
+        <div class="task"><span class="task-name">ACK-first for deep tasks ("on it")</span><span class="task-tag tag-io">I/O</span></div>
+        <div class="task"><span class="task-name">Vision-reader stub</span><span class="task-tag tag-agent">AGENT</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Tech Stack</div>
+        <div class="task"><span class="task-name">Backend: FastAPI + WebSocket</span></div>
+        <div class="task"><span class="task-name">Frontend: Next.js</span></div>
+        <div class="task"><span class="task-name">Voice: STT/TTS at the I/O edge</span></div>
+        <div style="margin-top:14px">
+          <div class="phase-col-title">Design Principle</div>
+          <div class="task"><span class="task-name">Voice lives outside the graph &mdash; swappable</span></div>
+          <div class="task"><span class="task-name">Never block the voice thread</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="merge-point"><strong>Merge point:</strong> Dashboard shows live activity while a voice request runs through the system.</div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>Speak a deep request &rarr; hear an immediate ACK</li>
+        <li>Watch the triad work live in the dashboard</li>
+        <li>Hear the final result via TTS</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 6 ===== -->
+<div class="phase p6">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 6</span>
+    <div>
+      <div class="phase-title">Integrations &mdash; Composio + MCP</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Track A: OAuth bridge &middot; Track B: Wire tools to departments</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Connect the system to the outside world. Composio provides 100+ OAuth apps as typed tools (Gmail, Notion, Slack, GitHub). Wire them into the department agents that need them.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Track A &mdash; Composio Bridge (Spine)</div>
+        <div class="task"><span class="task-name"><code>composio.py</code> &mdash; OAuth flow</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Register Composio tools in tool registry</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Gmail integration</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Notion integration</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Slack integration</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">GitHub integration</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name"><code>mcp.py</code> &mdash; MCP bridge</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Track B &mdash; Wire to Departments (Edges)</div>
+        <div class="task"><span class="task-name">Growth dept gets Gmail + Notion</span><span class="task-tag tag-dept">DEPT</span></div>
+        <div class="task"><span class="task-name">Engineering dept gets GitHub</span><span class="task-tag tag-dept">DEPT</span></div>
+        <div class="task"><span class="task-name">Marketing dept gets Slack</span><span class="task-tag tag-dept">DEPT</span></div>
+        <div class="task"><span class="task-name">Permission-gate all external actions</span><span class="task-tag tag-tool">TOOL</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Integration Architecture</div>
+        <div class="task"><span class="task-name">Composio = 100+ OAuth apps as typed tools</span></div>
+        <div class="task"><span class="task-name">MCP = model context protocol</span></div>
+        <div class="task"><span class="task-name">All through the single tool registry</span></div>
+        <div class="task"><span class="task-name">Guardian approves all external writes</span></div>
+      </div>
+    </div>
+    <div class="merge-point"><strong>Merge point:</strong> A department agent completes a real task through Composio.</div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>An agent reads Gmail and writes a Notion page via Composio</li>
+        <li>All gated by permissions</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 7 ===== -->
+<div class="phase p7">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 7</span>
+    <div>
+      <div class="phase-title">Mass-Produce Departments</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">Parallel &middot; Split the 28-department catalog across tracks</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">Copy the proven Engineering pattern across all remaining departments. Each = ~4 class files + a sub-graph + ONE registry line. The pattern is proven &mdash; now it's a production line.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Track A &mdash; Backend + DevOps + AI/ML</div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin-bottom:8px;">BACKEND DIVISION (16 agents)</div>
+        <div class="task"><span class="task-name">Backend dept &mdash; Architect, Builder, Schema, Reviewer</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">Database dept &mdash; Architect, Query, Migration, Integrity</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">Auth dept &mdash; Architect, Token, Access-Control, Critic</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">API Gateway dept &mdash; Architect, Rate-Limit, Cache, Load</span><span class="task-tag tag-dept">4</span></div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin: 12px 0 8px;">DEVOPS DIVISION (11 agents)</div>
+        <div class="task"><span class="task-name">DevOps dept &mdash; CI/CD, Pipeline, Release, Deploy</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">Cloud dept &mdash; Architect, Provisioner, Cost, Reliability</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">Observability dept &mdash; Telemetry, Alert, Incident</span><span class="task-tag tag-dept">3</span></div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin: 12px 0 8px;">AI/ML DIVISION (8 agents)</div>
+        <div class="task"><span class="task-name">AI Agent dept &mdash; Prompt, Tool/Fn, Router, Eval</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">ML dept &mdash; Curator, Embedding, Trainer, Critic</span><span class="task-tag tag-dept">4</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Track B &mdash; Frontend + Growth + Sales/Ops</div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin-bottom:8px;">FRONTEND DIVISION (12 agents)</div>
+        <div class="task"><span class="task-name">Frontend Build &mdash; Architect, Component, State, Reviewer</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">UI/UX dept &mdash; Designer, Stylist, Interaction, Critic</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">Graphics dept &mdash; Director, Generator, Brand, Critic</span><span class="task-tag tag-dept">4</span></div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin: 12px 0 8px;">GROWTH DIVISION (12 agents)</div>
+        <div class="task"><span class="task-name">Trends dept &mdash; Scout, Analyst, Skeptic</span><span class="task-tag tag-dept">3</span></div>
+        <div class="task"><span class="task-name">Marketing dept &mdash; Strategist, Copywriter, Critic</span><span class="task-tag tag-dept">3</span></div>
+        <div class="task"><span class="task-name">Lead Gen dept &mdash; Prospector, Enricher, Qualifier</span><span class="task-tag tag-dept">3</span></div>
+        <div class="task"><span class="task-name">SEO dept &mdash; Keyword, Content, Auditor</span><span class="task-tag tag-dept">3</span></div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin: 12px 0 8px;">SALES &amp; OPS DIVISION (9 agents)</div>
+        <div class="task"><span class="task-name">SDR dept &mdash; Outreach, Message, Reply</span><span class="task-tag tag-dept">3</span></div>
+        <div class="task"><span class="task-name">Support dept &mdash; Triager, Resolver, Escalation</span><span class="task-tag tag-dept">3</span></div>
+        <div class="task"><span class="task-name">Finance dept &mdash; Bookkeeper, Reporter, Compliance</span><span class="task-tag tag-dept">3</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Shared &mdash; Perception + Quality</div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin-bottom:8px;">PERCEPTION DIVISION (9 agents)</div>
+        <div class="task"><span class="task-name">Screen dept &mdash; Watcher, Vision-reader, Frame-critic</span><span class="task-tag tag-dept">3</span></div>
+        <div class="task"><span class="task-name">Video dept &mdash; Capturer, Summarizer, Critic</span><span class="task-tag tag-dept">3</span></div>
+        <div class="task"><span class="task-name">Document dept &mdash; Ingester, Extractor, Critic</span><span class="task-tag tag-dept">3</span></div>
+        <div style="font-size:11px;font-weight:700;color:#fb923c;margin: 12px 0 8px;">QUALITY DIVISION (7 agents)</div>
+        <div class="task"><span class="task-name">Testing dept &mdash; Strategist, Writer, Runner, Triager</span><span class="task-tag tag-dept">4</span></div>
+        <div class="task"><span class="task-name">UI Testing dept &mdash; Visual-Test, Playwright, Regression</span><span class="task-tag tag-dept">3</span></div>
+        <div style="margin-top:14px">
+          <div class="phase-col-title">Per Department Recipe</div>
+          <div class="task"><span class="task-name">~4 class files</span></div>
+          <div class="task"><span class="task-name">1 LangGraph sub-graph</span></div>
+          <div class="task"><span class="task-name">1 registry line</span></div>
+          <div class="task"><span class="task-name">1 eval test (runs in CI)</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>Every department has a passing end-to-end test through its triad and critic loop</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 8 ===== -->
+<div class="phase p8">
+  <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="phase-num">Phase 8</span>
+    <div>
+      <div class="phase-title">Harden &amp; Scale</div>
+      <div style="font-size:12px;color:#475569;margin-top:3px">No new features &middot; Security, performance, production readiness</div>
+    </div>
+    <span class="phase-status status-not-started">NOT STARTED</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="phase-body">
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">No new features. Harden, optimize, and make it production-grade. Eval harness per department, cost dashboards, security audit, load testing, and swap SQLite for Postgres.</p>
+    <div class="phase-cols">
+      <div>
+        <div class="phase-col-title">Security &amp; Audit</div>
+        <div class="task"><span class="task-name">Full security audit (secrets, tool permissions)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">OAuth scope review (Composio)</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Permission matrix audit (all tools)</span><span class="task-tag tag-tool">TOOL</span></div>
+        <div class="task"><span class="task-name">Secret protection verification</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Performance &amp; Scale</div>
+        <div class="task"><span class="task-name">SQLite &rarr; Postgres checkpointer swap</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Load test the daemon</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Lane tuning (instant / fast / deep)</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Cost dashboards + token budgets</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+      <div>
+        <div class="phase-col-title">Evaluation &amp; Monitoring</div>
+        <div class="task"><span class="task-name">Eval harness per department</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Cost ceiling enforcement</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">48h unattended stress test</span><span class="task-tag tag-infra">INFRA</span></div>
+        <div class="task"><span class="task-name">Telemetry review + alert tuning</span><span class="task-tag tag-infra">INFRA</span></div>
+      </div>
+    </div>
+    <div class="exit-gate">
+      <strong>Exit Gate:</strong>
+      <ul>
+        <li>Runs unattended for 48 hours with no crash</li>
+        <li>Briefings generated autonomously</li>
+        <li>Costs within ceiling</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== ARCHITECTURE OVERVIEW ===== -->
+<div class="arch-section">
+  <h2>Architecture &mdash; 7 Layers</h2>
+  <div class="layer-stack">
+    <div class="layer-num" style="color:#a78bfa;">1</div>
+    <div class="layer-bar" style="border-color:#a78bfa;background:#1e1347;border-radius:8px 8px 0 0;padding:12px 16px;">
+      <div class="layer-bar-name" style="color:#c4b5fd;">I/O &amp; Edge</div>
+      <div class="layer-bar-desc">Voice, chat, dashboard &mdash; the user-facing surface</div>
+    </div>
+    <div class="layer-num" style="color:#c084fc;">2</div>
+    <div class="layer-bar" style="border-color:#c084fc;background:#1a0d30;padding:12px 16px;">
+      <div class="layer-bar-name" style="color:#d8b4fe;">Orchestration</div>
+      <div class="layer-bar-desc">LangGraph StateGraph &mdash; company + department sub-graphs</div>
+    </div>
+    <div class="layer-num" style="color:#60a5fa;">3</div>
+    <div class="layer-bar" style="border-color:#60a5fa;background:#0c1e3d;padding:12px 16px;">
+      <div class="layer-bar-name" style="color:#93c5fd;">Agents</div>
+      <div class="layer-bar-desc">Singleton classes, proposer/worker/critic triads, registry</div>
+    </div>
+    <div class="layer-num" style="color:#22d3ee;">4</div>
+    <div class="layer-bar" style="border-color:#22d3ee;background:#082030;padding:12px 16px;">
+      <div class="layer-bar-name" style="color:#67e8f9;">Tools</div>
+      <div class="layer-bar-desc">Permission-gated &mdash; bash, file, web, vision &mdash; one registry</div>
+    </div>
+    <div class="layer-num" style="color:#fbbf24;">5</div>
+    <div class="layer-bar" style="border-color:#fbbf24;background:#2d1a00;padding:12px 16px;">
+      <div class="layer-bar-name" style="color:#fde68a;">Memory / Brain</div>
+      <div class="layer-bar-desc">Obsidian + Qdrant &mdash; read-before-act</div>
+    </div>
+    <div class="layer-num" style="color:#34d399;">6</div>
+    <div class="layer-bar" style="border-color:#34d399;background:#0d2a1e;padding:12px 16px;">
+      <div class="layer-bar-name" style="color:#6ee7b7;">Integrations</div>
+      <div class="layer-bar-desc">Composio + MCP &mdash; 100+ OAuth apps as typed tools</div>
+    </div>
+    <div class="layer-num" style="color:#f87171;">7</div>
+    <div class="layer-bar" style="border-color:#f87171;background:#2d0d15;border-radius:0 0 8px 8px;padding:12px 16px;">
+      <div class="layer-bar-name" style="color:#fca5a5;">Infrastructure</div>
+      <div class="layer-bar-desc">Daemon, model router, checkpointer, telemetry</div>
+    </div>
+  </div>
+  <p style="font-size:11px;color:#475569;margin-top:10px;text-align:center;">Dependency rule: a layer may only call the layer directly below it.</p>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== RULES ===== -->
+<h2 style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:14px">Non-Negotiable Rules</h2>
+<div class="arch-grid">
+  <div class="arch-card">
+    <div class="arch-card-title" style="color:#f87171;">Safety &amp; Boundaries</div>
+    <div class="arch-card-body">
+      Layer rule &mdash; only call directly below<br>
+      Permission-gated tools (Guardian approves)<br>
+      Bounded critic loop (max 3 revisions)<br>
+      Kill switch on destructive actions
+    </div>
+  </div>
+  <div class="arch-card">
+    <div class="arch-card-title" style="color:#60a5fa;">Architecture</div>
+    <div class="arch-card-body">
+      One class = one agent (single responsibility)<br>
+      No if-elif dispatch &mdash; use the registry<br>
+      Typed state only (<code>AgentState</code>)<br>
+      Sub-graph per department
+    </div>
+  </div>
+  <div class="arch-card">
+    <div class="arch-card-title" style="color:#34d399;">Operations</div>
+    <div class="arch-card-body">
+      Lane discipline (instant / fast / deep)<br>
+      Read-before-act (query brain first)<br>
+      Every department ships one eval test<br>
+      Cost &amp; latency ceilings enforced
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== COMMANDS ===== -->
+<h2 style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:14px">Custom Commands</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+  <div class="arch-card">
+    <div class="arch-card-title" style="color:#22d3ee;">Session Lifecycle</div>
+    <div class="arch-card-body">
+      <code>/start-phase</code> &mdash; Load context &amp; begin active phase<br>
+      <code>/log</code> &mdash; Summarize session to SESSION_LOG<br>
+      <code>/exit-gate</code> &mdash; Verify phase gate, advance if passed<br>
+      <code>/reflect</code> &mdash; Run the learning loop
+    </div>
+  </div>
+  <div class="arch-card">
+    <div class="arch-card-title" style="color:#fb923c;">Build Helpers</div>
+    <div class="arch-card-body">
+      <code>/new-department &lt;name&gt;</code> &mdash; Create department from pattern<br>
+      <code>memory.js log</code> &mdash; Append to session log<br>
+      <code>memory.js decide</code> &mdash; Record an ADR<br>
+      <code>memory.js search</code> &mdash; Search past sessions
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== AGENT ROSTER SUMMARY ===== -->
+<h2 style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:14px">Agent Roster &mdash; 92 Agents Across 9 Divisions</h2>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+  <thead>
+    <tr style="background:#131720;color:#64748b;text-transform:uppercase;font-size:11px;letter-spacing:0.07em;">
+      <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #1e2535;">Division</th>
+      <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #1e2535;">Departments</th>
+      <th style="text-align:right;padding:10px 12px;border-bottom:1px solid #1e2535;">Agents</th>
+      <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #1e2535;">Built In</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid #1e2535;">
+      <td style="padding:9px 12px;color:#6ee7b7;font-weight:600;">Executive / Core</td>
+      <td style="padding:9px 12px;color:#94a3b8;">Orchestrator, Dispatcher, Librarian, Reflector, Guardian</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">5</td>
+      <td style="padding:9px 12px;color:#64748b;">Phases 1&ndash;4</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;background:#0d1018;">
+      <td style="padding:9px 12px;color:#6ee7b7;font-weight:600;">Memory &amp; Continuity</td>
+      <td style="padding:9px 12px;color:#94a3b8;">Session Scribe, Decision Recorder, Log Auditor</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">3</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 4</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;">
+      <td style="padding:9px 12px;color:#22d3ee;font-weight:600;">Backend</td>
+      <td style="padding:9px 12px;color:#94a3b8;">Backend, Database, Auth, API Gateway</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">16</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;background:#0d1018;">
+      <td style="padding:9px 12px;color:#c084fc;font-weight:600;">Frontend</td>
+      <td style="padding:9px 12px;color:#94a3b8;">Build, UI/UX Design, Graphics</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">12</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;">
+      <td style="padding:9px 12px;color:#60a5fa;font-weight:600;">Quality</td>
+      <td style="padding:9px 12px;color:#94a3b8;">Testing, UI Testing</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">7</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;background:#0d1018;">
+      <td style="padding:9px 12px;color:#fbbf24;font-weight:600;">DevOps &amp; Cloud</td>
+      <td style="padding:9px 12px;color:#94a3b8;">DevOps, Cloud/Infra, Observability</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">11</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;">
+      <td style="padding:9px 12px;color:#a78bfa;font-weight:600;">AI / ML</td>
+      <td style="padding:9px 12px;color:#94a3b8;">AI Agent, ML</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">8</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;background:#0d1018;">
+      <td style="padding:9px 12px;color:#fb923c;font-weight:600;">Growth</td>
+      <td style="padding:9px 12px;color:#94a3b8;">Trends, Marketing, Lead Gen, SEO</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">12</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;">
+      <td style="padding:9px 12px;color:#f87171;font-weight:600;">Sales &amp; Ops</td>
+      <td style="padding:9px 12px;color:#94a3b8;">SDR, Customer Support, Finance</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">9</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1e2535;background:#0d1018;">
+      <td style="padding:9px 12px;color:#34d399;font-weight:600;">Perception</td>
+      <td style="padding:9px 12px;color:#94a3b8;">Screen, Video, Document-reading</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;">9</td>
+      <td style="padding:9px 12px;color:#64748b;">Phase 7</td>
+    </tr>
+    <tr style="background:#131720;font-weight:700;">
+      <td style="padding:10px 12px;color:#f8fafc;">TOTAL</td>
+      <td style="padding:10px 12px;color:#64748b;">28 departments</td>
+      <td style="padding:10px 12px;text-align:right;color:#f8fafc;">92</td>
+      <td style="padding:10px 12px;color:#64748b;">Phases 0&ndash;8</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="divider"></div>
+
+<!-- ===== ESCALATION PROTOCOL ===== -->
+<h2 style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:14px">When Stuck &mdash; Escalation Protocol</h2>
+<div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:10px;">
+  <div class="arch-card" style="text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#34d399;margin-bottom:6px;">1</div>
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Read Error</div>
+    <div style="font-size:11px;color:#64748b;margin-top:4px;">Full message + failing line</div>
+  </div>
+  <div class="arch-card" style="text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#22d3ee;margin-bottom:6px;">2</div>
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">One Fix</div>
+    <div style="font-size:11px;color:#64748b;margin-top:4px;">Single targeted change</div>
+  </div>
+  <div class="arch-card" style="text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#c084fc;margin-bottom:6px;">3</div>
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Consult Docs</div>
+    <div style="font-size:11px;color:#64748b;margin-top:4px;">Plan + decisions + rules</div>
+  </div>
+  <div class="arch-card" style="text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#fbbf24;margin-bottom:6px;">4</div>
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Search Memory</div>
+    <div style="font-size:11px;color:#64748b;margin-top:4px;">Have we seen this before?</div>
+  </div>
+  <div class="arch-card" style="text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#f87171;margin-bottom:6px;">5</div>
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Log &amp; Stop</div>
+    <div style="font-size:11px;color:#64748b;margin-top:4px;">Write blocker, ask human</div>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:36px;font-size:12px;color:#1e2535;">
+  Agent OS &middot; 9 phases &middot; 92 agents &middot; 28 departments &middot; Society-of-mind architecture &middot; Built with Claude Code
+</div>
+
+</body>
+</html>
