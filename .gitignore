@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# Qdrant data (Phase 1+)
+qdrant_data/
+
+# Obsidian vault local config
+brain/.obsidian/
+
+# Node
+node_modules/
+
+# Test / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build artifacts
+*.sqlite
+*.db

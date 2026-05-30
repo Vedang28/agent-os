@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent OS — Runtime Capabilities</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+  h1 { text-align: center; font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 48px; }
+  .section-title {
+    text-align: center; font-size: 20px; font-weight: 700; color: #fff;
+    margin: 60px 0 24px; padding-top: 40px; border-top: 1px solid #1a1a2e;
+  }
+  .section-title:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+
+  /* ── Capability Grid ── */
+  .cap-grid {
+    max-width: 900px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  .cap-card {
+    border-radius: 12px; padding: 18px 16px; text-align: center;
+    border: 1.5px solid #222; background: #0d0d14;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .cap-card:hover { border-color: #444; box-shadow: 0 0 20px rgba(255,255,255,.03); }
+  .cap-icon { font-size: 28px; margin-bottom: 8px; }
+  .cap-name { font-weight: 700; font-size: 13px; color: #f8f8f2; margin-bottom: 4px; }
+  .cap-dept { font-size: 10px; color: #6272a4; margin-bottom: 6px; }
+  .cap-desc { font-size: 11px; color: #777; line-height: 1.5; }
+
+  .cap-card.testing   { border-color: #50fa7b30; } .cap-card.testing:hover   { border-color: #50fa7b; }
+  .cap-card.bugs      { border-color: #ff555530; } .cap-card.bugs:hover      { border-color: #ff5555; }
+  .cap-card.fixing    { border-color: #8be9fd30; } .cap-card.fixing:hover    { border-color: #8be9fd; }
+  .cap-card.docs      { border-color: #bd93f930; } .cap-card.docs:hover      { border-color: #bd93f9; }
+  .cap-card.monitor   { border-color: #ffb86c30; } .cap-card.monitor:hover   { border-color: #ffb86c; }
+  .cap-card.cicd      { border-color: #f1fa8c30; } .cap-card.cicd:hover      { border-color: #f1fa8c; }
+  .cap-card.perf      { border-color: #ff79c630; } .cap-card.perf:hover      { border-color: #ff79c6; }
+  .cap-card.security  { border-color: #e9456030; } .cap-card.security:hover  { border-color: #e94560; }
+
+  /* ── Daemon Loop ── */
+  .daemon-wrap { max-width: 700px; margin: 0 auto; }
+  .daemon-header {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 2px solid #8be9fd; border-radius: 12px 12px 0 0;
+    padding: 16px 24px; text-align: center;
+  }
+  .daemon-header .label { color: #8be9fd; font-weight: 700; font-size: 16px; }
+  .daemon-header .desc { color: #666; font-size: 12px; margin-top: 4px; }
+  .daemon-body { border: 1.5px solid #222; border-top: none; border-radius: 0 0 12px 12px; overflow: hidden; }
+  .daemon-row {
+    display: flex; align-items: center; padding: 12px 20px;
+    border-bottom: 1px solid #1a1a2e; gap: 14px;
+    transition: background .15s;
+  }
+  .daemon-row:hover { background: rgba(255,255,255,.02); }
+  .daemon-row:last-child { border-bottom: none; }
+  .daemon-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+  .daemon-row .dept { font-weight: 600; font-size: 13px; color: #f8f8f2; min-width: 130px; }
+  .daemon-row .action { font-size: 12px; color: #777; }
+  .dot-green  { background: #50fa7b; }
+  .dot-red    { background: #ff5555; }
+  .dot-yellow { background: #f1fa8c; }
+  .dot-blue   { background: #8be9fd; }
+  .dot-purple { background: #bd93f9; }
+  .dot-orange { background: #ffb86c; }
+  .dot-pink   { background: #ff79c6; }
+
+  .reflector-row {
+    background: linear-gradient(90deg, rgba(189,147,249,.05), transparent);
+    border-top: 1.5px solid #bd93f940;
+  }
+  .reflector-row .dept { color: #bd93f9; }
+
+  /* ── Bug Lifecycle ── */
+  .lifecycle { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .lc-node {
+    width: 100%; border-radius: 12px; padding: 18px 22px;
+    position: relative;
+  }
+  .lc-node .lc-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .lc-node .lc-agents { font-size: 11px; color: #888; line-height: 1.7; }
+  .lc-node .lc-agents strong { color: #bbb; }
+
+  .lc-detect  { background: #0d0d14; border: 1.5px solid #ff5555; }
+  .lc-detect .lc-title { color: #ff5555; }
+  .lc-triage  { background: #0d0d14; border: 1.5px solid #ffb86c; }
+  .lc-triage .lc-title { color: #ffb86c; }
+  .lc-fix     { background: #0d0d14; border: 1.5px solid #8be9fd; }
+  .lc-fix .lc-title { color: #8be9fd; }
+  .lc-test    { background: #0d0d14; border: 1.5px solid #50fa7b; }
+  .lc-test .lc-title { color: #50fa7b; }
+  .lc-doc     { background: #0d0d14; border: 1.5px solid #bd93f9; }
+  .lc-doc .lc-title { color: #bd93f9; }
+  .lc-guard   { background: #0d0d14; border: 1.5px solid #e94560; }
+  .lc-guard .lc-title { color: #e94560; }
+  .lc-result  { background: linear-gradient(135deg, #1a2e1a, #0d0d14); border: 2px solid #50fa7b; }
+  .lc-result .lc-title { color: #50fa7b; }
+  .lc-learn   { background: linear-gradient(135deg, #1a1a2e, #2e1a2e); border: 1.5px solid #bd93f9; }
+  .lc-learn .lc-title { color: #bd93f9; }
+
+  .lc-arrow { width: 2px; height: 24px; background: #333; position: relative; }
+  .lc-arrow::after {
+    content: ''; position: absolute; bottom: -5px; left: -4px;
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #333;
+  }
+
+  /* ── Stack Map ── */
+  .stack-wrap { max-width: 800px; margin: 0 auto; }
+  .stack-row {
+    display: flex; align-items: stretch; border-bottom: 1px solid #111;
+    transition: background .15s;
+  }
+  .stack-row:hover { background: rgba(255,255,255,.02); }
+  .stack-layer {
+    flex: 1; padding: 12px 18px; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center;
+  }
+  .stack-arrow-col {
+    width: 50px; display: flex; align-items: center; justify-content: center;
+    color: #333; font-size: 18px;
+  }
+  .stack-dept {
+    flex: 1.3; padding: 12px 18px; font-size: 12px; color: #888;
+    display: flex; align-items: center;
+  }
+  .stack-row:nth-child(1)  .stack-layer { color: #8be9fd; }
+  .stack-row:nth-child(2)  .stack-layer { color: #ffb86c; }
+  .stack-row:nth-child(3)  .stack-layer { color: #ff79c6; }
+  .stack-row:nth-child(4)  .stack-layer { color: #50fa7b; }
+  .stack-row:nth-child(5)  .stack-layer { color: #f1fa8c; }
+  .stack-row:nth-child(6)  .stack-layer { color: #bd93f9; }
+  .stack-row:nth-child(7)  .stack-layer { color: #ff5555; }
+  .stack-row:nth-child(8)  .stack-layer { color: #e94560; }
+  .stack-row:nth-child(9)  .stack-layer { color: #8be9fd; }
+  .stack-row:nth-child(10) .stack-layer { color: #ffb86c; }
+  .stack-row:nth-child(11) .stack-layer { color: #ff79c6; }
+  .stack-row:nth-child(12) .stack-layer { color: #f1fa8c; }
+  .stack-row:nth-child(13) .stack-layer { color: #50fa7b; }
+
+  /* ── Dashboard Mock ── */
+  .dash-mock {
+    max-width: 800px; margin: 0 auto;
+    background: #0d0d14; border: 1.5px solid #222; border-radius: 12px; overflow: hidden;
+  }
+  .dash-titlebar {
+    background: #111; padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #1a1a2e;
+  }
+  .dash-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dash-dot.r { background: #ff5555; } .dash-dot.y { background: #f1fa8c; } .dash-dot.g { background: #50fa7b; }
+  .dash-titlebar span { color: #666; font-size: 12px; margin-left: 8px; }
+  .dash-body { padding: 20px; }
+  .dash-section { margin-bottom: 20px; }
+  .dash-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #555; margin-bottom: 10px; font-weight: 700; }
+
+  .dash-active-row {
+    display: flex; gap: 12px; margin-bottom: 0;
+  }
+  .dash-active-card {
+    flex: 1; background: #111; border-radius: 8px; padding: 12px; border: 1px solid #1a1a2e;
+  }
+  .dash-active-card .name { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+  .dash-active-card .status { font-size: 11px; color: #666; }
+  .dash-active-card.a1 .name { color: #50fa7b; }
+  .dash-active-card.a2 .name { color: #e94560; }
+  .dash-active-card.a3 .name { color: #ffb86c; }
+
+  .dash-pr {
+    display: flex; align-items: center; padding: 8px 12px; margin-bottom: 4px;
+    background: #111; border-radius: 6px; border: 1px solid #1a1a2e; gap: 10px;
+  }
+  .dash-pr .pr-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dash-pr .pr-title { font-size: 12px; color: #f8f8f2; flex: 1; }
+  .dash-pr .pr-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600;
+  }
+  .tag-crit { background: rgba(255,85,85,.15); color: #ff5555; }
+  .tag-sec  { background: rgba(233,69,96,.15); color: #e94560; }
+  .tag-test { background: rgba(80,250,123,.15); color: #50fa7b; }
+  .tag-doc  { background: rgba(189,147,249,.15); color: #bd93f9; }
+
+  .dash-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .dash-stat {
+    background: #111; border-radius: 8px; padding: 12px; text-align: center;
+    border: 1px solid #1a1a2e;
+  }
+  .dash-stat .num { font-size: 20px; font-weight: 700; color: #f8f8f2; }
+  .dash-stat .lbl { font-size: 10px; color: #555; margin-top: 4px; }
+  .dash-stat.green .num { color: #50fa7b; }
+  .dash-stat.blue .num  { color: #8be9fd; }
+  .dash-stat.pink .num  { color: #ff79c6; }
+  .dash-stat.yellow .num { color: #f1fa8c; }
+
+  .dash-insight {
+    background: rgba(189,147,249,.05); border: 1px solid #bd93f930;
+    border-radius: 8px; padding: 14px; font-size: 12px; color: #999; line-height: 1.6;
+  }
+  .dash-insight strong { color: #bd93f9; }
+
+  .dash-cost-row { display: flex; gap: 16px; font-size: 12px; color: #666; justify-content: center; padding: 10px; }
+  .dash-cost-row span { color: #888; }
+
+  /* ── Learning Loop ── */
+  .learn-timeline { max-width: 600px; margin: 0 auto; position: relative; padding-left: 30px; }
+  .learn-timeline::before {
+    content: ''; position: absolute; left: 10px; top: 0; bottom: 0;
+    width: 2px; background: linear-gradient(to bottom, #bd93f9, #50fa7b);
+  }
+  .learn-item { position: relative; margin-bottom: 28px; }
+  .learn-item::before {
+    content: ''; position: absolute; left: -24px; top: 4px;
+    width: 10px; height: 10px; border-radius: 50%; border: 2px solid #bd93f9; background: #0a0a0f;
+  }
+  .learn-item:last-child::before { border-color: #50fa7b; background: #50fa7b; }
+  .learn-week { font-size: 11px; color: #bd93f9; font-weight: 700; margin-bottom: 4px; }
+  .learn-text { font-size: 13px; color: #888; line-height: 1.6; }
+  .learn-text strong { color: #f8f8f2; }
+
+  @media (max-width: 700px) {
+    .cap-grid { grid-template-columns: repeat(2, 1fr); }
+    .dash-active-row { flex-direction: column; }
+    .dash-summary { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Agent OS &mdash; Runtime Capabilities</h1>
+<p class="subtitle">Testing, reporting, fixing, documenting, and learning &mdash; all autonomous</p>
+
+<!-- ── Capabilities Grid ── -->
+<h2 class="section-title">What Agent-OS Handles Autonomously</h2>
+<div class="cap-grid">
+  <div class="cap-card testing">
+    <div class="cap-icon">&#x1F9EA;</div>
+    <div class="cap-name">Testing</div>
+    <div class="cap-dept">Dev Experience &rarr; Testing</div>
+    <div class="cap-desc">Writes tests, finds coverage gaps, fixes flaky tests, runs regression</div>
+  </div>
+  <div class="cap-card bugs">
+    <div class="cap-icon">&#x1F41B;</div>
+    <div class="cap-name">Bug Reporting</div>
+    <div class="cap-dept">Dev Experience &rarr; Bug Triage</div>
+    <div class="cap-desc">Detects failures, reproduces, classifies severity, alerts you</div>
+  </div>
+  <div class="cap-card fixing">
+    <div class="cap-icon">&#x1F527;</div>
+    <div class="cap-name">Fixing Issues</div>
+    <div class="cap-dept">Owning Department</div>
+    <div class="cap-desc">Proposer diagnoses &rarr; Worker fixes &rarr; Critic reviews &rarr; PR ready</div>
+  </div>
+  <div class="cap-card docs">
+    <div class="cap-icon">&#x1F4DD;</div>
+    <div class="cap-name">Documentation</div>
+    <div class="cap-dept">Dev Experience &rarr; Docs</div>
+    <div class="cap-desc">Detects code-doc drift, writes API docs, READMEs, changelogs</div>
+  </div>
+  <div class="cap-card monitor">
+    <div class="cap-icon">&#x1F4CA;</div>
+    <div class="cap-name">Monitoring</div>
+    <div class="cap-dept">DevOps &rarr; Observability</div>
+    <div class="cap-desc">Watches logs, detects anomalies, correlates errors across services</div>
+  </div>
+  <div class="cap-card cicd">
+    <div class="cap-icon">&#x2699;&#xFE0F;</div>
+    <div class="cap-name">CI/CD Health</div>
+    <div class="cap-dept">Dev Experience &rarr; DevOps/CI</div>
+    <div class="cap-desc">Monitors builds, investigates failures, fixes configs, retries</div>
+  </div>
+  <div class="cap-card perf">
+    <div class="cap-icon">&#x26A1;</div>
+    <div class="cap-name">Performance</div>
+    <div class="cap-dept">Dev Experience &rarr; Performance</div>
+    <div class="cap-desc">Profiles hot paths, catches latency spikes, suggests optimizations</div>
+  </div>
+  <div class="cap-card security">
+    <div class="cap-icon">&#x1F6E1;&#xFE0F;</div>
+    <div class="cap-name">Security</div>
+    <div class="cap-dept">Dev Experience &rarr; Security</div>
+    <div class="cap-desc">OWASP scanning, dep audits, CVE alerts, auto-upgrade PRs</div>
+  </div>
+</div>
+
+<!-- ── Daemon Loop ── -->
+<h2 class="section-title">Proactive Daemon Loop</h2>
+<p style="text-align:center;color:#666;font-size:13px;margin-bottom:20px;">Runs every 15&ndash;20 minutes &mdash; no prompts needed</p>
+<div class="daemon-wrap">
+  <div class="daemon-header">
+    <div class="label">Daemon Tick</div>
+    <div class="desc">Autonomous sweep across all departments</div>
+  </div>
+  <div class="daemon-body">
+    <div class="daemon-row"><div class="daemon-dot dot-green"></div><div class="dept">Testing</div><div class="action">New code since last tick? &rarr; run tests &rarr; report failures</div></div>
+    <div class="daemon-row"><div class="daemon-dot dot-red"></div><div class="dept">Bug Triage</div><div class="action">New errors in logs? &rarr; reproduce &rarr; classify &rarr; alert</div></div>
+    <div class="daemon-row"><div class="daemon-dot dot-orange"></div><div class="dept">Security</div><div class="action">New CVEs for our deps? &rarr; scan &rarr; open upgrade PR</div></div>
+    <div class="daemon-row"><div class="daemon-dot dot-purple"></div><div class="dept">Documentation</div><div class="action">Merged PRs without doc updates? &rarr; detect drift &rarr; update</div></div>
+    <div class="daemon-row"><div class="daemon-dot dot-pink"></div><div class="dept">Performance</div><div class="action">Latency changes? &rarr; benchmark &rarr; flag regressions</div></div>
+    <div class="daemon-row"><div class="daemon-dot dot-yellow"></div><div class="dept">CI Monitor</div><div class="action">Failed builds? &rarr; investigate &rarr; fix &rarr; retry</div></div>
+    <div class="daemon-row reflector-row"><div class="daemon-dot dot-purple"></div><div class="dept">Reflector</div><div class="action">What patterns am I seeing? &rarr; update playbooks &rarr; next tick is smarter</div></div>
+  </div>
+</div>
+
+<!-- ── Bug Lifecycle ── -->
+<h2 class="section-title">Full Bug Lifecycle</h2>
+<p style="text-align:center;color:#666;font-size:13px;margin-bottom:20px;">Detection &rarr; triage &rarr; fix &rarr; test &rarr; document &rarr; learn</p>
+<div class="lifecycle">
+  <div class="lc-node lc-detect">
+    <div class="lc-title">Bug Detected</div>
+    <div class="lc-agents">Observability or Testing department spots the issue</div>
+  </div>
+  <div class="lc-arrow"></div>
+  <div class="lc-node lc-triage">
+    <div class="lc-title">Bug Triage Department</div>
+    <div class="lc-agents">
+      <strong>Classifier:</strong> reads error, checks brain for similar past bugs<br>
+      <strong>Reproducer:</strong> attempts reproduction, captures exact steps<br>
+      <strong>Validator:</strong> confirms repro is accurate, confirms root cause
+    </div>
+  </div>
+  <div class="lc-arrow"></div>
+  <div class="lc-node lc-fix">
+    <div class="lc-title">Owning Department (e.g. Backend)</div>
+    <div class="lc-agents">
+      <strong>Architect:</strong> reads brain + bug report, plans the fix<br>
+      <strong>Builder:</strong> implements fix using tools<br>
+      <strong>Reviewer:</strong> reviews fix, max 3 revisions then escalate
+    </div>
+  </div>
+  <div class="lc-arrow"></div>
+  <div class="lc-node lc-test">
+    <div class="lc-title">Testing Department</div>
+    <div class="lc-agents">Runs full test suite against the fix</div>
+  </div>
+  <div class="lc-arrow"></div>
+  <div class="lc-node lc-doc">
+    <div class="lc-title">Documentation Department</div>
+    <div class="lc-agents">Updates any affected docs</div>
+  </div>
+  <div class="lc-arrow"></div>
+  <div class="lc-node lc-guard">
+    <div class="lc-title">Guardian</div>
+    <div class="lc-agents">Gates the PR &mdash; is it safe to merge?</div>
+  </div>
+  <div class="lc-arrow"></div>
+  <div class="lc-node lc-result">
+    <div class="lc-title">PR Ready for Review</div>
+    <div class="lc-agents">Delivered to your dashboard with: fix + tests + docs + security review</div>
+  </div>
+  <div class="lc-arrow"></div>
+  <div class="lc-node lc-learn">
+    <div class="lc-title">Reflector</div>
+    <div class="lc-agents">"This bug type was caused by X &mdash; next time check Y first" &rarr; playbook updated</div>
+  </div>
+</div>
+
+<!-- ── Stack Map ── -->
+<h2 class="section-title">Full Stack Coverage</h2>
+<p style="text-align:center;color:#666;font-size:13px;margin-bottom:20px;">Every layer of your tech stack has a department that owns it</p>
+<div class="stack-wrap">
+  <div class="stack-row"><div class="stack-layer">Frontend</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">Frontend Division (Build, Design, Graphics)</div></div>
+  <div class="stack-row"><div class="stack-layer">APIs &amp; Backend Logic</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">Backend Division (Backend, API Gateway)</div></div>
+  <div class="stack-row"><div class="stack-layer">Database &amp; Storage</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">Backend Division (Database dept)</div></div>
+  <div class="stack-row"><div class="stack-layer">Auth &amp; Permissions</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">Backend Division (Auth &amp; Authorization)</div></div>
+  <div class="stack-row"><div class="stack-layer">Hosting &amp; Deployment</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">DevOps Division (DevOps dept)</div></div>
+  <div class="stack-row"><div class="stack-layer">Cloud &amp; Compute</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">DevOps Division (Cloud/Infra)</div></div>
+  <div class="stack-row"><div class="stack-layer">CI/CD &amp; Version Control</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">Dev Experience (DevOps/CI)</div></div>
+  <div class="stack-row"><div class="stack-layer">Security &amp; RLS</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">Dev Experience (Security)</div></div>
+  <div class="stack-row"><div class="stack-layer">Rate Limiting</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">Backend Division (API Gateway)</div></div>
+  <div class="stack-row"><div class="stack-layer">Caching &amp; CDN</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">DevOps Division (Cloud/Infra)</div></div>
+  <div class="stack-row"><div class="stack-layer">Load Balancing &amp; Scaling</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">DevOps Division (Cloud/Infra)</div></div>
+  <div class="stack-row"><div class="stack-layer">Error Tracking &amp; Logs</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">DevOps Division (Observability)</div></div>
+  <div class="stack-row"><div class="stack-layer">Availability &amp; Recovery</div><div class="stack-arrow-col">&rarr;</div><div class="stack-dept">DevOps Division (DevOps dept)</div></div>
+</div>
+
+<!-- ── Dashboard Mock ── -->
+<h2 class="section-title">What You See on the Dashboard</h2>
+<div class="dash-mock">
+  <div class="dash-titlebar">
+    <div class="dash-dot r"></div><div class="dash-dot y"></div><div class="dash-dot g"></div>
+    <span>Agent-OS Dashboard &mdash; 9:14 AM</span>
+  </div>
+  <div class="dash-body">
+    <div class="dash-section">
+      <div class="dash-section-title">Active Now</div>
+      <div class="dash-active-row">
+        <div class="dash-active-card a1"><div class="name">Testing</div><div class="status">Running regression suite...</div></div>
+        <div class="dash-active-card a2"><div class="name">Security</div><div class="status">Scanning deps for CVEs...</div></div>
+        <div class="dash-active-card a3"><div class="name">Bug Triage</div><div class="status">2 new bugs classified as P2</div></div>
+      </div>
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-title">Ready for Review</div>
+      <div class="dash-pr"><div class="pr-dot" style="background:#ff5555"></div><div class="pr-title">PR #142 &mdash; Fix null pointer in payment handler</div><div class="pr-tag tag-crit">Critical</div></div>
+      <div class="dash-pr"><div class="pr-dot" style="background:#e94560"></div><div class="pr-title">PR #143 &mdash; Upgrade lodash (CVE-2026-1234)</div><div class="pr-tag tag-sec">Security</div></div>
+      <div class="dash-pr"><div class="pr-dot" style="background:#50fa7b"></div><div class="pr-title">PR #144 &mdash; Fix 3 flaky tests in auth module</div><div class="pr-tag tag-test">Testing</div></div>
+      <div class="dash-pr"><div class="pr-dot" style="background:#bd93f9"></div><div class="pr-title">PR #145 &mdash; Update API docs for v2.3 endpoints</div><div class="pr-tag tag-doc">Docs</div></div>
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-title">Overnight Summary</div>
+      <div class="dash-summary">
+        <div class="dash-stat green"><div class="num">847</div><div class="lbl">Tests Passed</div></div>
+        <div class="dash-stat blue"><div class="num">0</div><div class="lbl">Tests Failed</div></div>
+        <div class="dash-stat pink"><div class="num">1</div><div class="lbl">CVE Found</div></div>
+        <div class="dash-stat yellow"><div class="num">4m 12s</div><div class="lbl">Avg Build Time</div></div>
+      </div>
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-title">Brain Insight</div>
+      <div class="dash-insight"><strong>Reflector:</strong> "Auth module has had 4 null-pointer bugs this month. Added null-safety check to Code Review playbook. Future PRs to auth/ will get extra scrutiny."</div>
+    </div>
+    <div class="dash-cost-row">
+      Tokens: <span>2.1M</span> &nbsp;&middot;&nbsp; Cost: <span>$4.82</span> &nbsp;&middot;&nbsp; Tasks: <span>47</span> &nbsp;&middot;&nbsp; PRs opened: <span>12</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Learning Loop ── -->
+<h2 class="section-title">Continuous Improvement</h2>
+<p style="text-align:center;color:#666;font-size:13px;margin-bottom:24px;">The brain compounds &mdash; every outcome teaches the next run</p>
+<div class="learn-timeline">
+  <div class="learn-item">
+    <div class="learn-week">Week 1</div>
+    <div class="learn-text">Bug fix takes <strong>4 department hops</strong>, <strong>3 critic revisions</strong>. Playbooks are empty.</div>
+  </div>
+  <div class="learn-item">
+    <div class="learn-week">Week 4</div>
+    <div class="learn-text">Playbooks updated &mdash; proposers check <strong>common patterns first</strong>. Revisions drop to 2.</div>
+  </div>
+  <div class="learn-item">
+    <div class="learn-week">Week 8</div>
+    <div class="learn-text">Same bug type fixed in <strong>2 hops, 1 revision</strong>. Brain has seen this pattern before.</div>
+  </div>
+  <div class="learn-item">
+    <div class="learn-week">Week 12</div>
+    <div class="learn-text">Proposer <strong>prevents the bug class entirely</strong> &mdash; suggests guard clause during code review before the bug is written.</div>
+  </div>
+</div>
+
+</body>
+</html>

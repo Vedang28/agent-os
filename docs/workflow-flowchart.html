@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent OS — Development Workflow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 48px;
+  }
+  .flowchart {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Nodes */
+  .node {
+    position: relative;
+    border-radius: 12px;
+    padding: 20px 28px;
+    text-align: center;
+    width: 100%;
+    max-width: 520px;
+  }
+  .node-operator {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 2px solid #e94560;
+    box-shadow: 0 0 30px rgba(233, 69, 96, 0.15);
+  }
+  .node-operator .label { color: #e94560; font-weight: 700; font-size: 18px; }
+  .node-operator .desc { color: #999; font-size: 13px; margin-top: 6px; }
+
+  .node-gate {
+    background: linear-gradient(135deg, #1a1a2e, #1a2e1a);
+    border: 2px solid #50fa7b;
+    box-shadow: 0 0 30px rgba(80, 250, 123, 0.1);
+    max-width: 400px;
+  }
+  .node-gate .label { color: #50fa7b; font-weight: 700; font-size: 16px; }
+  .node-gate .desc { color: #999; font-size: 12px; margin-top: 4px; }
+
+  .node-log {
+    background: linear-gradient(135deg, #1a1a2e, #2e1a2e);
+    border: 2px solid #bd93f9;
+    box-shadow: 0 0 30px rgba(189, 147, 249, 0.1);
+    max-width: 320px;
+  }
+  .node-log .label { color: #bd93f9; font-weight: 700; font-size: 16px; }
+  .node-log .desc { color: #999; font-size: 12px; margin-top: 4px; }
+
+  .node-decision {
+    background: linear-gradient(135deg, #2e2a1a, #1a1a2e);
+    border: 2px solid #f1fa8c;
+    max-width: 280px;
+    padding: 14px 24px;
+  }
+  .node-decision .label { color: #f1fa8c; font-weight: 700; font-size: 15px; }
+
+  /* Arrow connector */
+  .arrow {
+    width: 2px;
+    height: 32px;
+    background: #333;
+    position: relative;
+  }
+  .arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: -4px;
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid #333;
+  }
+  .arrow-short { height: 20px; }
+
+  /* Three-way split */
+  .split-container {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .split-line {
+    width: 70%;
+    height: 2px;
+    background: #333;
+    position: relative;
+  }
+  .split-line::before, .split-line::after, .split-line .mid {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 28px;
+    background: #333;
+  }
+  .split-line::before { left: 0; }
+  .split-line::after { right: 0; }
+  .split-line .mid { left: 50%; transform: translateX(-50%); }
+
+  .options-row {
+    display: flex;
+    justify-content: space-between;
+    width: 70%;
+    gap: 16px;
+    margin-top: 28px;
+  }
+  .option-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #555;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .option-card {
+    flex: 1;
+    border-radius: 12px;
+    padding: 18px 14px;
+    text-align: center;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .option-a {
+    background: linear-gradient(135deg, #1a1a2e, #1e1e3a);
+    border: 1.5px solid #6272a4;
+  }
+  .option-a .opt-title { color: #8be9fd; }
+
+  .option-b {
+    background: linear-gradient(135deg, #1a1a2e, #2a1e3a);
+    border: 1.5px solid #6272a4;
+  }
+  .option-b .opt-title { color: #ff79c6; }
+
+  .option-c {
+    background: linear-gradient(135deg, #1a1a2e, #1e3a2a);
+    border: 2px solid #50fa7b;
+    box-shadow: 0 0 20px rgba(80, 250, 123, 0.08);
+  }
+  .option-c .opt-title { color: #50fa7b; }
+  .option-c .recommended {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #50fa7b;
+    background: rgba(80, 250, 123, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+
+  .opt-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  .opt-desc { color: #777; font-size: 11px; line-height: 1.5; }
+  .opt-cmd { color: #f8f8f2; font-size: 11px; background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 4px; margin-top: 8px; display: inline-block; }
+
+  /* Merge line */
+  .merge-container {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .merge-arms {
+    width: 100%;
+    height: 28px;
+    position: relative;
+  }
+  .merge-arms::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #333;
+  }
+  .merge-arms .arm-l, .merge-arms .arm-r, .merge-arms .arm-m {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 28px;
+    background: #333;
+  }
+  .merge-arms .arm-l { left: 0; }
+  .merge-arms .arm-r { right: 0; }
+  .merge-arms .arm-m { left: 50%; transform: translateX(-50%); }
+
+  /* Fail branch */
+  .decision-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 520px;
+    width: 100%;
+  }
+  .fail-arrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ff5555;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .fail-arrow .line {
+    width: 60px;
+    height: 2px;
+    background: #ff5555;
+    position: relative;
+  }
+  .fail-arrow .line::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: -4px;
+    width: 0; height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid #ff5555;
+  }
+  .fail-box {
+    border: 1.5px solid #ff5555;
+    background: rgba(255, 85, 85, 0.05);
+    border-radius: 8px;
+    padding: 8px 16px;
+    color: #ff5555;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pass-label {
+    color: #50fa7b;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: -4px;
+    margin-bottom: -4px;
+  }
+
+  /* Phase table */
+  .phase-section {
+    max-width: 860px;
+    margin: 60px auto 0;
+  }
+  .phase-section h2 {
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 2px solid #333;
+    color: #888;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #1a1a2e;
+    vertical-align: top;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .phase-num { color: #8be9fd; font-weight: 700; }
+  .phase-name { color: #f8f8f2; }
+  .track-a { color: #ff79c6; }
+  .track-b { color: #50fa7b; }
+  .phase-file { color: #6272a4; font-size: 11px; }
+
+  /* Agents table */
+  .agents-section {
+    max-width: 860px;
+    margin: 48px auto 0;
+  }
+  .agents-section h2 {
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .agent-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tag-opus { background: rgba(233, 69, 96, 0.15); color: #e94560; }
+  .tag-sonnet { background: rgba(139, 233, 253, 0.15); color: #8be9fd; }
+  .tag-rw { background: rgba(80, 250, 123, 0.1); color: #50fa7b; }
+  .tag-ro { background: rgba(189, 147, 249, 0.1); color: #bd93f9; }
+
+  /* Before/After */
+  .comparison {
+    max-width: 860px;
+    margin: 48px auto 0;
+  }
+  .comparison h2 {
+    color: #fff;
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .comp-row {
+    display: flex;
+    border-bottom: 1px solid #1a1a2e;
+  }
+  .comp-row:first-child { border-top: 2px solid #333; }
+  .comp-before, .comp-after {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .comp-before { color: #ff5555; background: rgba(255,85,85,0.03); }
+  .comp-after { color: #50fa7b; background: rgba(80,250,123,0.03); }
+  .comp-header {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    padding: 10px 16px;
+    border-bottom: 2px solid #333;
+  }
+  .comp-header.before { color: #ff5555; }
+  .comp-header.after { color: #50fa7b; }
+
+  .tldr {
+    max-width: 700px;
+    margin: 48px auto 0;
+    text-align: center;
+    padding: 24px;
+    border: 1.5px solid #6272a4;
+    border-radius: 12px;
+    background: rgba(98, 114, 164, 0.05);
+  }
+  .tldr h3 { color: #f8f8f2; font-size: 16px; margin-bottom: 10px; }
+  .tldr p { color: #999; font-size: 13px; line-height: 1.6; }
+  .tldr strong { color: #f8f8f2; }
+</style>
+</head>
+<body>
+
+<h1>Agent OS &mdash; Development Workflow</h1>
+<p class="subtitle">How to build agent-os phase by phase using Claude Code's parallel tooling</p>
+
+<div class="flowchart">
+
+  <!-- Step 1: Operator -->
+  <div class="node node-operator">
+    <div class="label">YOU (operator)</div>
+    <div class="desc">Pick a phase prompt from <code>prompts/phase-N-*.md</code><br>Choose how to run it</div>
+  </div>
+
+  <div class="arrow"></div>
+
+  <!-- Three-way split -->
+  <div class="split-container">
+    <div class="split-line"><div class="mid"></div></div>
+    <div class="options-row">
+      <!-- Option A -->
+      <div>
+        <div class="option-label">Option A</div>
+        <div class="option-card option-a">
+          <div class="opt-title">Single Session</div>
+          <div class="opt-desc">One Claude does it all sequentially. Paste the prompt.</div>
+          <div class="opt-cmd">paste prompt</div>
+        </div>
+      </div>
+      <!-- Option B -->
+      <div>
+        <div class="option-label">Option B</div>
+        <div class="option-card option-b">
+          <div class="opt-title">Workflow</div>
+          <div class="opt-desc">Orchestrated subagents fan out in parallel from a script.</div>
+          <div class="opt-cmd">"run a workflow to..."</div>
+        </div>
+      </div>
+      <!-- Option C -->
+      <div>
+        <div class="option-label">Option C</div>
+        <div class="option-card option-c">
+          <div class="recommended">Recommended</div>
+          <div class="opt-title">Agent View</div>
+          <div class="opt-desc">Parallel sessions in worktrees.<br>@spine-builder + @edge-builder</div>
+          <div class="opt-cmd">claude agents</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge -->
+  <div class="merge-container" style="margin-top: 16px;">
+    <div class="merge-arms">
+      <div class="arm-l"></div>
+      <div class="arm-m"></div>
+      <div class="arm-r"></div>
+    </div>
+  </div>
+
+  <div class="arrow arrow-short"></div>
+
+  <!-- Gate checker -->
+  <div class="node node-gate">
+    <div class="label">@gate-checker</div>
+    <div class="desc">Verifies exit gate with real commands<br>(independent agent, not self-grading)</div>
+  </div>
+
+  <div class="arrow arrow-short"></div>
+
+  <!-- Decision -->
+  <div class="decision-row">
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+      <div class="node node-decision">
+        <div class="label">PASS?</div>
+      </div>
+    </div>
+    <div class="fail-arrow">
+      <span>No</span>
+      <div class="line"></div>
+      <div class="fail-box">Fix &amp; re-run</div>
+    </div>
+  </div>
+
+  <div class="pass-label">Yes</div>
+  <div class="arrow arrow-short"></div>
+
+  <!-- Log + next -->
+  <div class="node node-log">
+    <div class="label">/log &rarr; Next phase</div>
+    <div class="desc">Record session summary, advance phase</div>
+  </div>
+
+</div>
+
+<!-- Phase Map -->
+<div class="phase-section">
+  <h2>Phase Map</h2>
+  <table>
+    <tr>
+      <th>Phase</th>
+      <th>Prompt</th>
+      <th>Track A (Spine)</th>
+      <th>Track B (Edges)</th>
+    </tr>
+    <tr>
+      <td><span class="phase-num">0</span></td>
+      <td><span class="phase-file">phase-0-foundation.md</span></td>
+      <td class="track-a">Folders, protocol, state, graph, telemetry</td>
+      <td class="track-b">Tool base, Permission enum, registry</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">1</span></td>
+      <td><span class="phase-file">phase-1-brain-tools.md</span></td>
+      <td class="track-a">Brain: obsidian, qdrant, librarian</td>
+      <td class="track-b">Tools: bash, file, web</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">2</span></td>
+      <td><span class="phase-file">phase-2-spine-engineering.md</span></td>
+      <td class="track-a">Orchestrator, Dispatcher, checkpointer</td>
+      <td class="track-b">Engineering: Architect / Scaffolder / CodeDoctor</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">3</span></td>
+      <td><span class="phase-file">phase-3-daemon-intelligence.md</span></td>
+      <td class="track-a">Daemon heartbeat, model router</td>
+      <td class="track-b">Intelligence: Scout / Analyst / Skeptic</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">4</span></td>
+      <td><span class="phase-file">phase-4-learning-guardian.md</span></td>
+      <td class="track-a">Reflector (learning loop)</td>
+      <td class="track-b">Guardian (permissions, kill switch)</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">5</span></td>
+      <td><span class="phase-file">phase-5-dashboard-voice.md</span></td>
+      <td class="track-a">FastAPI + WebSocket backend</td>
+      <td class="track-b">Voice STT/TTS + Next.js dashboard</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">6</span></td>
+      <td><span class="phase-file">phase-6-integrations.md</span></td>
+      <td class="track-a">Composio bridge (OAuth)</td>
+      <td class="track-b">Wire tools into departments</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">7</span></td>
+      <td><span class="phase-file">phase-7-mass-departments.md</span></td>
+      <td class="track-a">Backend, DevOps, AI/ML divisions</td>
+      <td class="track-b">Frontend, Growth, Sales/Ops divisions</td>
+    </tr>
+    <tr>
+      <td><span class="phase-num">8</span></td>
+      <td><span class="phase-file">phase-8-harden-scale.md</span></td>
+      <td class="track-a">Evals, cost tracking, Postgres</td>
+      <td class="track-b">Security audit, load test, lane tuning</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Agents -->
+<div class="agents-section">
+  <h2>Available Subagents</h2>
+  <table>
+    <tr>
+      <th>Agent</th>
+      <th>Role</th>
+      <th>Model</th>
+      <th>Access</th>
+    </tr>
+    <tr>
+      <td><code>@spine-builder</code></td>
+      <td>Track A: core, agents, brain, infra</td>
+      <td><span class="agent-tag tag-opus">Opus</span></td>
+      <td><span class="agent-tag tag-rw">read/write</span></td>
+    </tr>
+    <tr>
+      <td><code>@edge-builder</code></td>
+      <td>Track B: tools, io, dashboard, integrations</td>
+      <td><span class="agent-tag tag-opus">Opus</span></td>
+      <td><span class="agent-tag tag-rw">read/write</span></td>
+    </tr>
+    <tr>
+      <td><code>@test-runner</code></td>
+      <td>Runs pytest, diagnoses failures</td>
+      <td><span class="agent-tag tag-sonnet">Sonnet</span></td>
+      <td><span class="agent-tag tag-ro">read-only</span></td>
+    </tr>
+    <tr>
+      <td><code>@gate-checker</code></td>
+      <td>Verifies exit gates with real commands</td>
+      <td><span class="agent-tag tag-sonnet">Sonnet</span></td>
+      <td><span class="agent-tag tag-ro">read-only</span></td>
+    </tr>
+    <tr>
+      <td><code>@architect</code></td>
+      <td>Reviews designs against constraints</td>
+      <td><span class="agent-tag tag-opus">Opus</span></td>
+      <td><span class="agent-tag tag-ro">read-only</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- Before/After -->
+<div class="comparison">
+  <h2>What Changed</h2>
+  <div class="comp-row">
+    <div class="comp-header before">Before</div>
+    <div class="comp-header after">Now</div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-before">One session does everything</div>
+    <div class="comp-after">Two builders work in parallel (worktree-isolated)</div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-before">Self-check exit gates</div>
+    <div class="comp-after">Dedicated @gate-checker verifies independently</div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-before">Only Phase 0 had a prompt</div>
+    <div class="comp-after">All 9 phases have detailed prompts with code examples</div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-before">No permissions configured</div>
+    <div class="comp-after">.claude/settings.json pre-allows pytest, make, git, etc.</div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-before">Manual track splitting</div>
+    <div class="comp-after">@spine-builder and @edge-builder know their layers</div>
+  </div>
+  <div class="comp-row">
+    <div class="comp-before">Builders learn nothing across sessions</div>
+    <div class="comp-after">Both builders have persistent project memory</div>
+  </div>
+</div>
+
+<!-- TL;DR -->
+<div class="tldr">
+  <h3>TL;DR</h3>
+  <p>Pick a phase prompt &rarr; dispatch <strong>spine-builder</strong> + <strong>edge-builder</strong> in parallel &rarr; <strong>gate-checker</strong> verifies &rarr; next phase.<br>Repeat 9 times and you have agent-os running.</p>
+</div>
+
+</body>
+</html>

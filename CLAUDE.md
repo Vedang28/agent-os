@@ -52,5 +52,26 @@ Follow `docs/WHEN_STUCK.md`. Summary: read the real error → one targeted fix �
 ## Learning loop
 Follow `docs/LEARNING_LOOP.md`. Use `/reflect` to turn repeated outcomes into recorded decisions and playbook improvements.
 
+## Subagents (.claude/agents/)
+- **`@spine-builder`** — Track A builder (core, agents, brain, infra). Uses worktree isolation.
+- **`@edge-builder`** — Track B builder (tools, io, dashboard, integrations). Uses worktree isolation.
+- **`@test-runner`** — Runs pytest, reports failures with root causes. Read-only.
+- **`@gate-checker`** — Verifies phase exit gates with real checks. Read-only.
+- **`@architect`** — Reviews designs against architectural constraints. Read-only.
+
+## Phase prompts (prompts/)
+One prompt per phase (0–8). Each includes:
+- What to build (Track A + Track B)
+- How to run it (single session, workflow, or parallel agent view)
+- Exit gate checklist
+- Rules reminder
+
+To run a phase: copy the prompt from `prompts/phase-N-*.md` into a new session.
+
+## Parallel work patterns
+- **Agent view** (`claude agents`): dispatch `@spine-builder` and `@edge-builder` as parallel sessions with worktree isolation
+- **Workflows**: say "run a workflow to..." for fan-out orchestration
+- **Worktrees**: each builder agent gets its own worktree so Track A and Track B don't conflict
+
 ## Custom commands (.claude/commands/)
 `/start-phase` · `/exit-gate` · `/log` · `/reflect` · `/new-department <name>`

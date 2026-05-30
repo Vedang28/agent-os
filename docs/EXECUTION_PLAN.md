@@ -147,7 +147,8 @@ Typed state is the contract between nodes. No node passes anything outside this 
 
 ### Phase 7 — Mass-produce departments (PARALLEL, split the catalog)
 - Copy the proven pattern across the remaining departments. Each = ~4 class files + a sub-graph + a registry line.
-- **Split the work:** Person A takes Backend + DevOps + AI/ML divisions. Person B takes Frontend + Growth + Sales/Ops. Perception (the eyes) is shared since Quality depends on it.
+- **Split the work:** Person A takes Backend + DevOps + AI/ML + Developer Experience divisions. Person B takes Frontend + Growth + Sales/Ops. Perception (the eyes) is shared since Quality depends on it.
+- **Developer Experience division** (24 agents): Code Review, Testing, Security, Bug Triage, Dependency Mgmt, Documentation, Performance, DevOps/CI. These are high-priority — dogfood them while building the rest.
 - **Exit gate:** every department has a passing end-to-end test through its triad and critic loop.
 
 ### Phase 8 — Harden & scale
@@ -167,7 +168,7 @@ Typed state is the contract between nodes. No node passes anything outside this 
 | 4 | Reflector | Guardian |
 | 5 | (Dashboard backend) | (Voice I/O) + Vision-reader stub |
 | 6 | Composio bridge | (wire tools to departments) |
-| 7 | Backend, DevOps, AI/ML divisions | Frontend, Growth, Sales/Ops divisions |
+| 7 | Backend, DevOps, AI/ML, Dev Experience divisions | Frontend, Growth, Sales/Ops divisions |
 | — | Shared: Perception (Screen-watcher · Vision-reader · Frame-critic), Quality (UI testing) |
 
 The full 89-agent catalog in `AGENT_ROSTER.md` still stands — this table is the **build order**, not a replacement.

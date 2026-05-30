@@ -6,7 +6,7 @@
 > then a **Proposer** drafts, a **Worker** executes, a **Critic** challenges before anything ships.
 > The Critic is the role that makes the system "think like a human" — nothing leaves a department unreviewed.
 
-**Total: 92 agents across 9 divisions / 28 departments.**
+**Total: 116 agents across 10 divisions / 36 departments.**
 
 Naming convention: `division.department.agent` (e.g. `backend.api.builder`).
 Registry key is lowercase dotted. Class name is PascalCase (e.g. `ApiBuilder`).
@@ -251,12 +251,73 @@ Keeps both the dev workflow and the runtime from starting cold. Pairs with the B
 
 ---
 
-## BUILD ORDER (don't build all 89 at once)
+## 9. DEVELOPER EXPERIENCE DIVISION (24) — every developer gets a full team
+
+### Code Review department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| Review Planner | proposer | Reads PR diff, brain for project patterns, plans review strategy |
+| Reviewer | worker | Line-by-line review: bugs, style, security, performance |
+| Review Critic | critic | Challenges false positives, verifies severity ratings |
+
+### Testing department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| Test Planner | proposer | Identifies coverage gaps, plans what tests to write |
+| Test Writer | worker | Writes unit/integration/e2e tests |
+| Test Critic | critic | Validates tests actually cover the intended behavior |
+
+### Security department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| Security Scanner | proposer | Scans codebase for OWASP top 10, known patterns |
+| Security Analyst | worker | Deep analysis: injection, auth bypass, data exposure |
+| Security Skeptic | critic | Adversarially challenges findings, filters false positives |
+
+### Bug Triage department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| Bug Classifier | proposer | Categorizes issues by severity, component, reproducibility |
+| Bug Reproducer | worker | Attempts to reproduce bugs, captures repro steps |
+| Bug Validator | critic | Verifies reproduction is accurate, confirms root cause |
+
+### Dependency Management department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| Dep Scanner | proposer | Monitors dependencies for CVEs, breaking changes, updates |
+| Dep Upgrader | worker | Creates upgrade PRs, runs tests, verifies compatibility |
+| Dep Validator | critic | Validates upgrade doesn't break anything, checks changelogs |
+
+### Documentation department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| Doc Detector | proposer | Identifies code-doc drift, missing docs, stale READMEs |
+| Doc Writer | worker | Writes/updates API docs, guides, inline docs |
+| Doc Reviewer | critic | Verifies docs match actual code behavior |
+
+### Performance department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| Perf Profiler | proposer | Identifies hot paths, latency regressions, memory leaks |
+| Perf Optimizer | worker | Implements optimizations, caching, query improvements |
+| Perf Validator | critic | Benchmarks before/after, validates improvement is real |
+
+### DevOps / CI department
+| Agent | Type | Purpose |
+|-------|------|---------|
+| CI Monitor | proposer | Watches CI pipelines, detects failures and flaky runs |
+| CI Fixer | worker | Investigates failures, fixes configs, retries with changes |
+| CI Validator | critic | Verifies fix actually resolves the failure, not a fluke |
+
+---
+
+## BUILD ORDER (don't build all 116 at once)
 
 1. **Executive / Core first** — Orchestrator, Dispatcher, Brain Librarian, Reflector, Guardian. Nothing works without these.
 2. **Obsidian brain layer** — note schema, read-before-act query, reflector loop. Every agent depends on it.
-3. **One full department end-to-end** — pick Backend or Lead Gen. Prove the lead → triad → critic → brain loop actually catches errors.
-4. **Replicate** — each new department after that is ~4 small class files + registry lines. Mass-produce by copying the proven pattern.
+3. **One full department end-to-end** — Engineering. Prove the lead → triad → critic → brain loop actually catches errors.
+4. **Developer Experience division early** — Code Review, Testing, Security departments. These are high-value and can be dogfooded immediately while building the rest of agent-os.
+5. **Replicate** — each new department after that is ~4 small class files + registry lines. Mass-produce by copying the proven pattern.
 
 ## ENGINEERING RULES FOR EVERY AGENT
 
