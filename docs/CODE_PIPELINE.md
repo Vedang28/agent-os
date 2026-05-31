@@ -1,6 +1,7 @@
 # Code Pipeline
 
 > The 9-stage pipeline every code-producing department runs. No shortcuts, no skipping stages.
+> **Stack-agnostic.** The stages are universal — the specific commands, tools, and patterns adapt to whatever tech stack the user is running.
 
 ## The Pipeline
 
@@ -9,6 +10,49 @@ PLAN → SCAFFOLD → BUILD → TEST → DEBUG → REVIEW → AUDIT → PROD-REA
 ```
 
 Every department that produces code follows this exact sequence. Non-code departments (Intelligence, Marketing, Sales, Support) use a simplified version without SCAFFOLD, TEST, DEBUG, or AUDIT.
+
+## Stack Detection (PLAN stage, step 0)
+
+Before the pipeline runs, agent-os detects the user's tech stack by reading their project:
+
+```
+Read project root:
+  package.json     → Node.js / JS / TS ecosystem
+  pyproject.toml   → Python ecosystem
+  composer.json    → PHP / Laravel
+  Gemfile          → Ruby / Rails
+  go.mod           → Go
+  Cargo.toml       → Rust
+  pom.xml          → Java / Maven
+  build.gradle     → Java / Kotlin / Gradle
+  *.csproj         → .NET / C#
+  pubspec.yaml     → Dart / Flutter
+  mix.exs          → Elixir / Phoenix
+  Package.swift    → Swift
+  docker-compose.* → Containerized app
+  Makefile         → Build system
+
+Read framework markers:
+  artisan          → Laravel
+  manage.py        → Django
+  next.config.*    → Next.js
+  nuxt.config.*    → Nuxt
+  angular.json     → Angular
+  svelte.config.*  → SvelteKit
+  astro.config.*   → Astro
+  Fastfile         → iOS/Android (Fastlane)
+  serverless.yml   → Serverless Framework
+  terraform/       → Infrastructure as Code
+  .github/workflows/ → CI/CD already configured
+
+Read database:
+  .env / config    → DB connection strings → MySQL, Postgres, Mongo, SQLite, Redis
+  migrations/      → ORM migrations exist
+  prisma/          → Prisma schema
+  schema.rb        → Rails migrations
+```
+
+This detection feeds into every stage so the pipeline uses the RIGHT commands, patterns, and security checks for the user's stack.
 
 ## Stage-by-Stage
 
@@ -42,19 +86,39 @@ Every department that produces code follows this exact sequence. Non-code depart
 ### 1. PLAN
 
 **Who:** Proposer agent (e.g., Architect, ReviewPlanner, TestPlanner)
-**What:** Design the approach before writing a single line of code.
+**What:** Read the codebase, detect the stack, explore the DB, produce a clear plan before any code.
 
 ```
-Input:  request + brain_context (read-before-act)
+Input:  request + brain_context (read-before-act) + detected stack
 Output: plan (list of steps), draft (design document)
+
+Substeps:
+  1a. Read brain for existing patterns, playbooks, and past decisions
+  1b. Detect tech stack (see Stack Detection above)
+  1c. Explore existing code structure (what exists, what needs changing)
+  1d. Explore database schema (if applicable)
+  1e. Identify files to create/modify
+  1f. Consider edge cases and failure modes
+  1g. Estimate scope (token budget, file count)
+  1h. Produce plan in stack-native terms
 
 Checks:
   ✓ Queried brain for existing patterns and playbooks
   ✓ Plan addresses the actual request, not a tangent
-  ✓ Plan identifies files to create/modify
-  ✓ Plan considers edge cases
+  ✓ Plan uses the project's actual patterns (not generic templates)
+  ✓ Plan considers the existing code — don't reinvent what's already there
   ✓ Plan estimates scope (token budget, file count)
 ```
+
+**Stack-specific examples:**
+| Stack | What PLAN reads |
+|---|---|
+| Laravel | routes/web.php, app/Models/, database/migrations/, .env |
+| Django | urls.py, models.py, settings.py, migrations/ |
+| Next.js | app/ or pages/, API routes, prisma/schema.prisma |
+| Rails | config/routes.rb, app/models/, db/schema.rb |
+| Go | go.mod, cmd/, internal/, handlers/ |
+| Spring | pom.xml, src/main/java, application.properties |
 
 The Proposer reads playbooks from the brain first. If the Reflector has noted "always use parameterized queries for DB work," the plan includes that from the start.
 
@@ -63,19 +127,39 @@ The Proposer reads playbooks from the brain first. If the Reflector has noted "a
 ### 2. SCAFFOLD
 
 **Who:** Worker agent (scaffolding mode)
-**What:** Create the file structure, interfaces, and contracts before implementation.
+**What:** Generate boilerplate — models, migrations, controllers, routes, views, types. Use the stack's native generators when available.
 
 ```
-Input:  plan from PLAN stage
+Input:  plan from PLAN stage + detected stack
 Output: skeleton files with interfaces, type signatures, empty test files
 
+Substeps:
+  2a. Use native scaffolding tools when available (see below)
+  2b. Create empty test files alongside source files
+  2c. Verify imports resolve, no circular dependencies
+  2d. Verify file structure follows the project's conventions
+
 Checks:
-  ✓ Files created in the correct layer folder
-  ✓ Interfaces match the plan's contracts
+  ✓ Files created in the correct project directories
+  ✓ Interfaces/types match the plan's contracts
   ✓ Test files created alongside source files
   ✓ Imports resolve (no circular dependencies)
-  ✓ Layer rule not violated (no upward imports)
+  ✓ Follows project's existing naming conventions
 ```
+
+**Stack-specific scaffolding:**
+| Stack | Native scaffolding commands |
+|---|---|
+| Laravel | `php artisan make:model`, `make:controller`, `make:migration`, `make:request`, `make:test` |
+| Django | `python manage.py startapp`, manual models/views/urls |
+| Next.js | Create files in `app/` or `pages/`, create API route handlers |
+| Rails | `rails generate model`, `scaffold`, `controller`, `migration` |
+| Go | Create packages in `internal/`, define interfaces, handler structs |
+| Spring | Create `@Controller`, `@Service`, `@Repository`, `@Entity` classes |
+| Express | Create route files, middleware, model schemas |
+| FastAPI | Create router files, Pydantic models, dependency functions |
+| Flutter | Create widgets, models, services, BLoC/providers |
+| .NET | `dotnet new`, create controllers, models, DbContext |
 
 Scaffold first, build second. This catches structural issues before the expensive code generation step.
 
@@ -84,37 +168,49 @@ Scaffold first, build second. This catches structural issues before the expensiv
 ### 3. BUILD
 
 **Who:** Worker agent (implementation mode)
-**What:** Fill in the scaffolded files with actual implementation.
+**What:** Write the working code — service layer, controller logic, views, client-side code. Use the stack's native patterns.
 
 ```
-Input:  scaffolded files + plan
+Input:  scaffolded files + plan + detected stack
 Output: working implementation
 
 Checks:
   ✓ All interfaces from SCAFFOLD are implemented
   ✓ Code follows the plan's design
   ✓ No TODOs or placeholder code left
-  ✓ Typed state contract respected
-  ✓ Registry pattern used (no if-elif)
-  ✓ Tools used via Tool interface, not raw subprocess
+  ✓ Uses the stack's native patterns (not generic code)
+  ✓ Follows project's existing conventions (naming, structure, style)
+  ✓ Database queries use the stack's ORM/query builder (not raw SQL)
 ```
+
+**Stack-specific patterns the BUILD stage follows:**
+| Stack | Patterns used |
+|---|---|
+| Laravel | Eloquent ORM, Blade templates, Form Requests, Middleware, Service classes |
+| Django | Django ORM, class-based views, serializers, middleware |
+| Next.js | Server components, API routes, Server Actions, React hooks |
+| Rails | ActiveRecord, ERB/Haml, concerns, service objects |
+| Go | Interfaces, dependency injection, error handling, goroutines |
+| Spring | Spring Data JPA, dependency injection, AOP, Bean validation |
+| Express | Middleware chains, async/await, Mongoose/Sequelize |
+| FastAPI | Pydantic models, dependency injection, async handlers |
 
 ---
 
 ### 4. TEST
 
 **Who:** Testing agent (or Worker in test mode)
-**What:** Write tests AND run them.
+**What:** Write tests AND run them using the stack's native test framework.
 
 ```
-Input:  implemented code from BUILD
+Input:  implemented code from BUILD + detected stack
 Output: test files + test results
 
 Substeps:
   4a. Write unit tests for each public function/class
   4b. Write integration tests for cross-module interactions
   4c. Write edge case tests (empty input, malformed data, timeouts, large input)
-  4d. Run full test suite: pytest -v --tb=short
+  4d. Run full test suite using the stack's test runner
   4e. Check coverage: identify untested paths
 
 Checks:
@@ -124,6 +220,21 @@ Checks:
   ✓ All tests pass
   ✓ No flaky tests (run twice to confirm)
 ```
+
+**Stack-specific test commands:**
+| Stack | Test framework | Run command |
+|---|---|---|
+| Laravel | PHPUnit / Pest | `php artisan test` |
+| Django | Django TestCase | `python manage.py test` |
+| Next.js / React | Jest / Vitest | `npm test` or `npx vitest` |
+| Rails | Minitest / RSpec | `rails test` or `rspec` |
+| Go | testing package | `go test ./...` |
+| Spring | JUnit / Mockito | `mvn test` or `gradle test` |
+| Express | Jest / Mocha | `npm test` |
+| FastAPI | pytest | `pytest -v` |
+| Flutter | flutter_test | `flutter test` |
+| Rust | built-in | `cargo test` |
+| .NET | xUnit / NUnit | `dotnet test` |
 
 If tests fail → go to DEBUG.
 
@@ -137,12 +248,12 @@ If tests fail → go to DEBUG.
 This is NOT just "fix failing unit tests." This is real-world verification:
 
 ```
-Input:  failing tests / review findings / audit findings / runtime issues
+Input:  failing tests / review findings / audit findings / runtime issues + detected stack
 Output: fixed code, verified working
 
 Process:
-  5a. Start the server / app / service
-  5b. Test in browser / via API — verify the feature actually works
+  5a. Start the server / app / service (using the stack's dev server)
+  5b. Test in browser / via API / via CLI — verify the feature actually works
   5c. Test the golden path end-to-end (not just unit tests)
   5d. Test edge cases live (empty input, wrong user, expired token)
   5e. If issues found:
@@ -163,6 +274,20 @@ Rules:
   ✓ Type checking and test suites verify code correctness — 
     running the app verifies feature correctness. Both are required.
 ```
+
+**Stack-specific dev servers:**
+| Stack | Start command |
+|---|---|
+| Laravel | `php artisan serve` |
+| Django | `python manage.py runserver` |
+| Next.js | `npm run dev` |
+| Rails | `rails server` |
+| Go | `go run .` or `air` (hot reload) |
+| Spring | `mvn spring-boot:run` or `gradle bootRun` |
+| Express | `npm run dev` or `node server.js` |
+| FastAPI | `uvicorn main:app --reload` |
+| Flutter | `flutter run` |
+| .NET | `dotnet run` |
 
 After DEBUG, return to whichever stage triggered it (TEST, REVIEW, or AUDIT).
 
@@ -307,9 +432,19 @@ The 15-point security checklist:
       ✓ Versions pinned, unused deps removed
 
 Active attack verification (if endpoints exist):
-  ✓ curl every endpoint with attack payloads
+  ✓ curl / httpie / Postman — hit every endpoint with attack payloads
   ✓ Verify each check with real requests, not just code reading
   ✓ Document what was tested and what passed
+
+Stack-specific security patterns to verify:
+  Laravel:  Form Requests, $fillable/$guarded, CSRF middleware, Sanctum/Passport
+  Django:   CSRF middleware, queryset filtering, @login_required, bleach
+  Next.js:  Server Actions validation, API route auth, CSP headers, sanitize-html
+  Rails:    Strong Parameters, CSRF token, has_secure_password, Pundit/CanCanCan
+  Go:       sql.DB with ?, template.HTMLEscapeString, crypto/rand
+  Spring:   Spring Security, @Valid, CSRF protection, BCryptPasswordEncoder
+  Express:  helmet, express-rate-limit, express-validator, cors, csurf
+  FastAPI:  Pydantic validation, Depends() for auth, CORS middleware
 
 If findings:
   → fail
@@ -511,3 +646,31 @@ No SCAFFOLD, TEST, DEBUG, AUDIT, or PROD-READY since they produce text, not code
 | Growth / Marketing | Content | PLAN → DRAFT → REVIEW → FACT-CHECK → DELIVER |
 | Sales / Support | Content | PLAN → DRAFT → REVIEW → FACT-CHECK → DELIVER |
 | Perception | Analysis | PLAN → CAPTURE → ANALYZE → VALIDATE → DELIVER |
+
+---
+
+## Stack-Agnostic Principle
+
+The 9 stages are universal. The commands, patterns, and tools adapt.
+
+```
+What stays the same across ALL stacks:
+  ✓ The 9-stage sequence (never skip, never reorder)
+  ✓ The 15-point security checklist
+  ✓ Max 3 debug loops, then escalate
+  ✓ "TESTED" confirmation required before PUSH
+  ✓ Specific file staging (never git add -A)
+  ✓ Brain read-before-act at PLAN stage
+  ✓ Reflector learning after PUSH
+
+What adapts per stack:
+  ✗ Scaffolding commands (artisan make vs rails generate vs manual)
+  ✗ ORM / query builder (Eloquent vs Django ORM vs Prisma vs ActiveRecord)
+  ✗ Test framework (PHPUnit vs pytest vs Jest vs RSpec vs go test)
+  ✗ Dev server (artisan serve vs runserver vs npm run dev)
+  ✗ Security patterns (Form Requests vs Pydantic vs Strong Parameters)
+  ✗ File structure conventions (app/Http vs src/handlers vs internal/)
+  ✗ Build tools (composer vs pip vs npm vs cargo vs gradle)
+```
+
+Agent-os detects the stack at PLAN time and adapts every subsequent stage. A Laravel project gets Eloquent patterns and `php artisan test`. A Go project gets interfaces and `go test ./...`. A Next.js project gets Server Components and `npx vitest`. The pipeline doesn't change — the implementation does.
