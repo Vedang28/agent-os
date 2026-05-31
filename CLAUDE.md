@@ -22,7 +22,8 @@ Autonomous multi-agent company. Society-of-mind: CEO orchestrator → divisions 
 3. **No if-elif dispatch.** Use the registry.
 4. **Bounded critic loop** — `max_revisions = 3`, then escalate. NEVER an unbounded loop.
 5. **Permission-gated tools** — every tool declares a `Permission`. Destructive actions require Guardian approval.
-5b. **Security Gate** — every code-producing department has a mandatory SecurityGate after the Critic. No code ships without passing injection, secrets, auth, and input validation checks. See `docs/SECURITY_ARCHITECTURE.md`.
+5b. **9-stage code pipeline** — every code-producing department runs: PLAN → SCAFFOLD → BUILD → TEST → DEBUG → REVIEW → AUDIT → PROD-READY → PUSH. No stage skipped. See `docs/CODE_PIPELINE.md`.
+5c. **Security Gate** — AUDIT stage: mandatory security review on every code output. Injection, secrets, auth, XSS, SSRF, CVEs. See `docs/SECURITY_ARCHITECTURE.md`.
 6. **Lane discipline** — cheap requests (greetings, time) skip the company entirely.
 7. **Read-before-act** — every proposer queries the brain first.
 8. **Typed state only** — nodes pass nothing outside `AgentState`.

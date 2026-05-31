@@ -176,6 +176,20 @@ The full 89-agent catalog in `AGENT_ROSTER.md` still stands — this table is th
 
 ---
 
+## CODE PIPELINE (every code-producing department)
+
+Every department that produces code runs a 9-stage pipeline. See `docs/CODE_PIPELINE.md` for full details.
+
+```
+PLAN → SCAFFOLD → BUILD → TEST → DEBUG → REVIEW → AUDIT → PROD-READY → PUSH
+```
+
+Non-code departments (Intelligence, Marketing, Sales) use: `PLAN → DRAFT → REVIEW → FACT-CHECK → DELIVER`.
+
+Failures at TEST, REVIEW, or AUDIT send code back to DEBUG. Max 3 loops total, then escalate. No unbounded loops. No stage skipping.
+
+---
+
 ## WHAT WORKS WELL (battle-tested patterns to use)
 
 - **Sub-graph per department** — isolates each team; a department becomes one node in the company graph.
