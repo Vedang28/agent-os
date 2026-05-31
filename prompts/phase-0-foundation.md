@@ -56,7 +56,21 @@ class Agent(Protocol):
 ```
 In `agents/registry.py`: a dict-based registry that loads agents by name. No if-elif dispatch — use the registry pattern. It should work even with zero agents registered. Provide `register(name, agent)`, `get(name)`, and `list_agents()`.
 
-### 4. Tool base + Permission enum
+### 4. Security Gate base class
+In `agents/security_gate.py`: a base class for the Security Gate that will be wired into every code-producing department's sub-graph (after the Critic node). For Phase 0, just the interface:
+```python
+from abc import ABC, abstractmethod
+from core.state import AgentState
+
+class SecurityGate(ABC):
+    @abstractmethod
+    async def review(self, state: AgentState) -> AgentState:
+        """Review output for security vulnerabilities. Return state with approved=False if issues found."""
+        ...
+```
+This gets implemented fully in Phase 2 when sub-graphs are wired.
+
+### 5. Tool base + Permission enum
 In `tools/base.py`:
 ```python
 from enum import Enum

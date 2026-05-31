@@ -92,6 +92,7 @@ Typed state is the contract between nodes. No node passes anything outside this 
 - **Separation of concerns** — the 7-layer rule above.
 - **Contract-first** — typed state + typed Task/Critique. Design the contract before the node.
 - **Fail-safe defaults** — Guardian + permission gates. Destructive actions require approval.
+- **Security Gate on all code output** — every code-producing department's sub-graph includes a SecurityGate node after the Critic. Checks injection, secrets, auth, input validation, dependency CVEs. Failures count toward `max_revisions`. See `docs/SECURITY_ARCHITECTURE.md`.
 - **Idempotent + checkpointed** — every node can be re-run safely; the daemon resumes from the last checkpoint.
 - **Bounded loops** — the critic revise loop has a `max_revisions` cap (e.g. 3). After the cap, escalate to Guardian/human. **Never an unbounded loop.**
 - **Cost & latency ceilings** — every deep task has a token budget and a wall-clock budget. Exceed it → stop and report.
