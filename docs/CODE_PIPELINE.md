@@ -132,25 +132,36 @@ If tests fail → go to DEBUG.
 ### 5. DEBUG
 
 **Who:** Worker agent (debug mode)
-**What:** Fix any failures from TEST, REVIEW, or AUDIT.
+**What:** Start the app, test it live, fix any runtime issues.
+
+This is NOT just "fix failing unit tests." This is real-world verification:
 
 ```
-Input:  failing tests / review findings / audit findings
-Output: fixed code
+Input:  failing tests / review findings / audit findings / runtime issues
+Output: fixed code, verified working
 
 Process:
-  5a. Read the actual error message and stack trace
-  5b. Identify root cause (not symptoms)
-  5c. Implement minimal targeted fix
-  5d. Re-run failing tests to confirm fix
-  5e. Run full suite to confirm no regressions
+  5a. Start the server / app / service
+  5b. Test in browser / via API — verify the feature actually works
+  5c. Test the golden path end-to-end (not just unit tests)
+  5d. Test edge cases live (empty input, wrong user, expired token)
+  5e. If issues found:
+      - Read the actual error message and stack trace
+      - Identify root cause (not symptoms)
+      - Implement minimal targeted fix
+      - Re-run to confirm fix
+      - Run full test suite to confirm no regressions
+  5f. Repeat until the feature works in the real app, not just in tests
 
 Rules:
   ✗ Never delete a test to make it pass
   ✗ Never swallow errors silently
   ✗ Never widen scope to escape a bug
+  ✗ Never claim "tested" without actually running the app
   ✓ One fix at a time, re-test after each
   ✓ Max 3 debug loops before escalating
+  ✓ Type checking and test suites verify code correctness — 
+    running the app verifies feature correctness. Both are required.
 ```
 
 After DEBUG, return to whichever stage triggered it (TEST, REVIEW, or AUDIT).
@@ -160,10 +171,12 @@ After DEBUG, return to whichever stage triggered it (TEST, REVIEW, or AUDIT).
 ### 6. REVIEW
 
 **Who:** Critic agent (e.g., CodeDoctor, BackendReviewer, DesignCritic)
-**What:** Code review for quality, architecture, and correctness.
+**What:** Code review + active attack testing on endpoints.
+
+This is NOT a passive read-through. The reviewer actively tries to break things:
 
 ```
-Input:  implemented + tested code
+Input:  implemented + tested + debugged code
 Output: critique (approved: bool, findings: list)
 
 Review checklist:
@@ -186,6 +199,18 @@ Review checklist:
     ✓ Edge cases handled
     ✓ Concurrent access safe where needed
     ✓ Bounded loops (max_revisions = 3)
+  
+  Active attack testing (if endpoints exist):
+    ✓ curl-attack every endpoint with malformed input
+    ✓ Send oversized payloads, unicode, null bytes
+    ✓ Try accessing other users' data (IDOR)
+    ✓ Try accessing without auth / with expired tokens
+    ✓ Try SQL injection in every input field
+    ✓ Try XSS payloads in every text field
+    ✓ Try path traversal in file/URL parameters
+    ✓ Test rate limiting — hammer an endpoint
+    ✓ Test mass assignment — send extra fields in requests
+    ✓ Fix every problem found before approving
 
 If findings:
   → approved = False
@@ -198,45 +223,93 @@ If findings:
 ### 7. AUDIT
 
 **Who:** Security Gate (SecurityGate class)
-**What:** Security audit against all attack vectors.
+**What:** Automated security scan — the 15-point checklist + active attack testing.
 
 ```
 Input:  reviewed + approved code
 Output: security verdict (pass/fail + findings)
 
-Scan for:
-  Injection:
-    ✓ SQL uses parameterized queries
-    ✓ Shell commands sanitized
-    ✓ HTML output encoded (XSS)
-    ✓ LDAP, XML (XXE) safe
-  
-  Secrets:
-    ✓ No API keys, tokens, passwords in code
-    ✓ No secrets in logs or error messages
-    ✓ Environment variables used for config
-  
-  Auth:
-    ✓ All endpoints authenticated
-    ✓ Authorization on protected resources
-    ✓ Passwords hashed properly (bcrypt/argon2)
-    ✓ Session tokens cryptographically random
-  
-  Input:
-    ✓ All external inputs validated
-    ✓ File paths checked for traversal
-    ✓ URLs checked for SSRF
-    ✓ Deserialization safe (no pickle/yaml.load)
-  
-  Dependencies:
-    ✓ No known CVEs (critical/high)
-    ✓ Versions pinned
-  
-  Infrastructure:
-    ✓ CORS restrictive
-    ✓ Security headers set
-    ✓ Debug mode off in prod config
-    ✓ Rate limiting on public endpoints
+The 15-point security checklist:
+
+  1. Input Validation
+     ✓ All user inputs validated (type, length, range, format)
+     ✓ Reject unexpected fields (no mass assignment)
+     ✓ Whitelist allowed values where possible
+
+  2. SQL Injection
+     ✓ ALL queries use parameterized statements / ORM
+     ✓ No raw string concatenation in queries — EVER
+     ✓ Test: ' OR 1=1 --, UNION SELECT, DROP TABLE
+
+  3. XSS (Cross-Site Scripting)
+     ✓ All output HTML-encoded
+     ✓ No raw HTML rendering of user input
+     ✓ CSP headers configured
+     ✓ Test: <script>alert(1)</script>, onerror=
+
+  4. CSRF (Cross-Site Request Forgery)
+     ✓ CSRF tokens on all state-changing forms/endpoints
+     ✓ SameSite cookie attribute set
+     ✓ Verify Origin/Referer headers
+
+  5. Command Injection
+     ✓ Shell commands use argument lists, not strings
+     ✓ All metacharacters escaped (;|&`$)
+     ✓ Test: ; rm -rf /, $(whoami), `id`
+
+  6. Rate Limiting
+     ✓ Rate limits on all public endpoints
+     ✓ Rate limits on auth endpoints (login, register, reset)
+     ✓ Test: hammer endpoint 100x in 1 second
+
+  7. Mass Assignment
+     ✓ Only expected fields accepted
+     ✓ Server-side allowlist of fillable fields
+     ✓ Test: send role=admin, is_staff=true in body
+
+  8. Route Constraints
+     ✓ Route parameters validated (numeric IDs are numeric)
+     ✓ No wildcard routes leaking internal paths
+     ✓ 404 for non-existent resources
+
+  9. Access Control
+     ✓ Auth required on all non-public endpoints
+     ✓ Authorization checked per user per action
+     ✓ Admin routes protected
+
+  10. IDOR (Insecure Direct Object Reference)
+      ✓ Every resource access checks ownership
+      ✓ Test: change /users/5/data to /users/6/data
+      ✓ UUIDs preferred over sequential IDs
+
+  11. Secrets Exposure
+      ✓ No keys, tokens, passwords in code
+      ✓ No secrets in logs or error messages
+      ✓ Environment variables for all config
+
+  12. Authentication
+      ✓ Passwords hashed (bcrypt/scrypt/argon2)
+      ✓ Session tokens cryptographically random
+      ✓ Token expiry configured
+      ✓ Secure cookie flags (HttpOnly, Secure, SameSite)
+
+  13. SSRF (Server-Side Request Forgery)
+      ✓ URLs validated before server-side requests
+      ✓ Block private IPs and cloud metadata endpoints
+
+  14. Path Traversal
+      ✓ File paths validated, symlinks resolved
+      ✓ Reject ../ in any file parameter
+      ✓ Restrict to allowed directories
+
+  15. Dependencies
+      ✓ No known CVEs (critical/high)
+      ✓ Versions pinned, unused deps removed
+
+Active attack verification (if endpoints exist):
+  ✓ curl every endpoint with attack payloads
+  ✓ Verify each check with real requests, not just code reading
+  ✓ Document what was tested and what passed
 
 If findings:
   → fail
@@ -249,7 +322,7 @@ If findings:
 ### 8. PROD-READY
 
 **Who:** Production Readiness agent (new agent in each department)
-**What:** Final checklist before code is considered shippable.
+**What:** Final live verification — curl-verify everything works, confirm it's ship-quality. The agent must confirm "tested" before the pipeline advances. No rubber-stamping.
 
 ```
 Input:  code that passed TEST + REVIEW + AUDIT
@@ -289,6 +362,14 @@ Checks:
     ✓ Change is reversible (can revert without data loss)
     ✓ Database migrations are backward-compatible
     ✓ No destructive schema changes without migration plan
+  
+  Live verification (mandatory):
+    ✓ Start the app / server fresh
+    ✓ curl-verify every new/changed endpoint
+    ✓ Verify the feature works end-to-end in the real app
+    ✓ Check for regressions in adjacent features
+    ✓ Confirm "TESTED" with evidence (request/response logs)
+    ✓ No advancing without explicit "TESTED" confirmation
 
 If not ready:
   → back to BUILD with specific items to address
@@ -308,17 +389,21 @@ Output: delivered result (PR, commit, deployed artifact)
 
 Steps:
   9a. Guardian final approval (destructive action gate)
-  9b. Create commit/PR with:
+  9b. Stage specific files (NEVER git add -A or git add .)
+       - Only add files that were created/modified in this pipeline run
+       - Verify no secrets, .env, or temp files are staged
+  9c. Create commit/PR with:
        - Clear title describing the change
        - Summary of what and why
-       - Test results
-       - Security audit result
-       - Production readiness confirmation
-  9c. Deliver to user via:
+       - Test results summary
+       - Security audit result (15-point checklist status)
+       - "TESTED" confirmation from PROD-READY
+  9d. Push to remote
+  9e. Deliver to user via:
        - Dashboard notification
        - Slack/email (if integrated)
        - Voice confirmation (if voice request)
-  9d. Log outcome to brain for Reflector
+  9f. Log outcome to brain for Reflector
 ```
 
 ---
