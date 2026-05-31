@@ -94,3 +94,11 @@ Dashboard shows live activity while a voice request runs.
 - [ ] ACK-first pattern: deep request gets immediate verbal acknowledgment
 - [ ] **Speak a deep request → hear ACK → watch triad work in dashboard → hear result**
 - [ ] All `pytest` green (backend), `npm test` green (frontend)
+
+
+## Verification
+After building, run the full **Verification Protocol** from `prompts/VERIFICATION_PROTOCOL.md`:
+1. `@test-runner` — all tests green
+2. `@architect` + `/code-review high` — no layer violations, no bugs
+3. `@security-auditor` + `/security-review` — no injection, no secrets, no SSRF
+4. `@gate-checker` — all exit criteria pass with evidence

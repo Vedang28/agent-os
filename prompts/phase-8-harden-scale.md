@@ -73,3 +73,11 @@ Then fix issues manually or with targeted agents.
 - [ ] Postgres checkpointer works with resume-after-restart
 - [ ] All `pytest` green, all evals green
 - [ ] **The system runs autonomously: daemon ticks → Intelligence briefs → Reflector improves playbooks → departments handle requests → Guardian gates dangerous actions → dashboard shows it all live**
+
+
+## Verification
+After building, run the full **Verification Protocol** from `prompts/VERIFICATION_PROTOCOL.md`:
+1. `@test-runner` — all tests green
+2. `@architect` + `/code-review high` — no layer violations, no bugs
+3. `@security-auditor` + `/security-review` — no injection, no secrets, no SSRF
+4. `@gate-checker` — all exit criteria pass with evidence

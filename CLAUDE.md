@@ -52,12 +52,22 @@ Follow `docs/WHEN_STUCK.md`. Summary: read the real error → one targeted fix �
 ## Learning loop
 Follow `docs/LEARNING_LOOP.md`. Use `/reflect` to turn repeated outcomes into recorded decisions and playbook improvements.
 
+## Verification protocol (mandatory per phase)
+After every phase build, run the 5-step verification from `prompts/VERIFICATION_PROTOCOL.md`:
+1. `@test-runner` → all tests green
+2. `@architect` + `/code-review high` → no layer violations, no bugs
+3. `@security-auditor` + `/security-review` → no injection, no secrets, no SSRF, no path traversal
+4. `@gate-checker` → all exit criteria pass with evidence
+5. Fix any failures → re-run from step 1
+Never advance a phase until all 5 steps pass.
+
 ## Subagents (.claude/agents/)
 - **`@spine-builder`** — Track A builder (core, agents, brain, infra). Uses worktree isolation.
 - **`@edge-builder`** — Track B builder (tools, io, dashboard, integrations). Uses worktree isolation.
 - **`@test-runner`** — Runs pytest, reports failures with root causes. Read-only.
 - **`@gate-checker`** — Verifies phase exit gates with real checks. Read-only.
 - **`@architect`** — Reviews designs against architectural constraints. Read-only.
+- **`@security-auditor`** — OWASP top 10, injection, secrets, path traversal, SSRF. Read-only.
 
 ## Phase prompts (prompts/)
 One prompt per phase (0–8). Each includes:

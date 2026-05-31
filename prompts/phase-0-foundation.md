@@ -146,7 +146,11 @@ The `.claude/memory/` system is already in place. Verify that `node .claude/memo
 - [ ] Memory system bootstrapped (`node .claude/memory/memory.js recent` runs)
 
 ## Verification
-Run `/exit-gate` when done, or dispatch `@gate-checker Verify Phase 0 exit gate`.
+After building, run the full **Verification Protocol** from `prompts/VERIFICATION_PROTOCOL.md`:
+1. `@test-runner` — all tests green
+2. `@architect` + `/code-review high` — no layer violations, no bugs
+3. `@security-auditor` + `/security-review` — no injection, no secrets, no SSRF
+4. `@gate-checker Verify Phase 0 exit gate` — all criteria pass with evidence
 
 ## Rules (from CLAUDE.md — non-negotiable)
 - Layer rule: a layer may only call the layer directly below it.

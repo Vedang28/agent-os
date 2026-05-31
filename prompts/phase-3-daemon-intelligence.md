@@ -78,3 +78,11 @@ The daemon tick triggers the Intelligence sub-graph. A daily briefing note appea
 - [ ] A daily briefing note appears in the brain after a tick
 - [ ] `max_revisions` cap is respected in Intelligence department
 - [ ] All `pytest` green
+
+
+## Verification
+After building, run the full **Verification Protocol** from `prompts/VERIFICATION_PROTOCOL.md`:
+1. `@test-runner` — all tests green
+2. `@architect` + `/code-review high` — no layer violations, no bugs
+3. `@security-auditor` + `/security-review` — no injection, no secrets, no SSRF
+4. `@gate-checker` — all exit criteria pass with evidence

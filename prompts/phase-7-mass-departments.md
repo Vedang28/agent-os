@@ -82,3 +82,11 @@ For EACH department:
 - [ ] All departments wire through the company graph via Orchestrator
 - [ ] No department edits the Orchestrator to be added (open/closed principle)
 - [ ] All `pytest` green
+
+
+## Verification
+After building, run the full **Verification Protocol** from `prompts/VERIFICATION_PROTOCOL.md`:
+1. `@test-runner` — all tests green
+2. `@architect` + `/code-review high` — no layer violations, no bugs
+3. `@security-auditor` + `/security-review` — no injection, no secrets, no SSRF
+4. `@gate-checker` — all exit criteria pass with evidence
