@@ -3,13 +3,13 @@
 > Update this after every working session. CLAUDE.md imports this file, so it's always in context.
 
 ## Active phase
-**Phase 0 — Foundation** (both tracks together, no split yet)
+**Phase 2 — Spine + first department (Engineering)**
 
 ## Phase ladder
 | Phase | Name | Status |
 |------|------|--------|
 | 0 | Foundation (repo, protocol, state, CI) | 🟢 COMPLETE |
-| 1 | Brain + Tools | 🔴 not started |
+| 1 | Brain + Tools | 🟢 COMPLETE |
 | 2 | Spine + first department (Engineering) | 🔴 not started |
 | 3 | Autonomous engine (daemon + Intelligence) | 🔴 not started |
 | 4 | Learning loop + Guardian | 🔴 not started |
@@ -27,5 +27,17 @@
 - [x] `pytest` green, CI passes (20 tests pass, `.github/workflows/ci.yml` created)
 - [x] memory system bootstrapped (`node .claude/memory/memory.js recent` runs)
 
+## Phase 1 exit gate (must pass before Phase 2)
+- [x] `brain/obsidian.py` — write a note → read it back
+- [x] `brain/qdrant.py` — embed a note → retrieve it semantically
+- [x] `brain/librarian.py` — `query()` returns relevant notes
+- [x] `tools/bash.py` — executes a command, returns output
+- [x] `tools/file.py` — writes and reads a file
+- [x] `tools/web.py` — makes an HTTP request (mocked in tests)
+- [x] Each tool declares the correct `Permission` level
+- [x] A SHELL-permission tool blocks without approval (permission gate test)
+- [x] Integration: agent stub queries brain AND calls a tool
+- [x] All `pytest` green (73 tests pass)
+
 ## Notes / blockers
-Phase 0 complete as of 2026-06-04. Ready for Phase 1.
+Phase 1 complete as of 2026-06-05. Ready for Phase 2.

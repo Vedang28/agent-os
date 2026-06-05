@@ -15,5 +15,8 @@ I/O → Orchestration → Agents → Tools → Memory → Integrations → Infra
 ## 2026-05-29 — Agent pattern: lead + proposer/worker/critic triad
 Every department uses the triad. The critic can reject and send work back, bounded at max_revisions = 3. This is what gives human-like critical review.
 
+## 2026-06-05 — Telemetry is exempt from the strict layer rule
+`infra.telemetry.get_logger` may be imported by any layer. Logging is a cross-cutting concern; routing it through intermediate layers adds indirection with no value. All other `infra.*` modules (daemon, model_router, checkpointer) remain subject to the strict layer rule.
+
 ## 2026-05-29 14:42 — Unified agent-os: one product for all users
 No separate dev edition. One agent-os serves developers, marketers, engineers, sales — everyone. Claude Code workflow patterns (subagents, workflows, agent view, worktrees, persistent memory) are implemented INSIDE agent-os runtime so every user gets the full parallel orchestration experience. The daemon, brain, reflector, guardian, voice, and dashboard are what make it more than Claude Code.

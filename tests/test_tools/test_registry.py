@@ -8,7 +8,7 @@ class FakeTool(Tool):
     name = "fake"
     permission = Permission.READ
 
-    async def execute(self, **kwargs) -> str:
+    async def _run(self, **kwargs) -> str:
         return "ok"
 
 
