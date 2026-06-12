@@ -3,6 +3,7 @@ import signal
 import time
 from dataclasses import dataclass, field
 
+from agents.guardian import is_killed
 from infra.telemetry import get_logger
 
 logger = get_logger("infra.daemon")
@@ -61,12 +62,20 @@ class Daemon:
         return cp
 
     async def tick(self) -> list[dict]:
+        if is_killed():
+            logger.warning("tick aborted: kill switch is active")
+            return []
+
         self._tick_count += 1
         tick_start = time.monotonic()
         logger.info("tick %d starting, jobs=%d", self._tick_count, len(self._jobs))
 
         results = []
         for job_name, job in self._jobs.items():
+            if is_killed():
+                logger.warning("tick %d: kill switch activated mid-tick, stopping", self._tick_count)
+                break
+
             elapsed = time.monotonic() - tick_start
             if elapsed >= self._max_wall_clock_per_tick:
                 logger.warning(
@@ -119,10 +128,13 @@ class Daemon:
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, lambda: asyncio.create_task(self.stop()))
 
-        while self._running:
+        while self._running and not is_killed():
             await self.tick()
-            if self._running:
+            if self._running and not is_killed():
                 await asyncio.sleep(self._tick_interval)
+
+        if is_killed():
+            logger.warning("daemon stopped by kill switch")
 
     async def stop(self) -> None:
         logger.info("daemon stopping, saving state")

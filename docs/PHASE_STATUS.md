@@ -3,7 +3,7 @@
 > Update this after every working session. CLAUDE.md imports this file, so it's always in context.
 
 ## Active phase
-**Phase 3 — Autonomous engine (Daemon + Intelligence)**
+**Phase 4 — Learning loop + Guardian**
 
 ## Phase ladder
 | Phase | Name | Status |
@@ -12,7 +12,7 @@
 | 1 | Brain + Tools | 🟢 COMPLETE |
 | 2 | Spine + first department (Engineering) | 🟢 COMPLETE |
 | 3 | Autonomous engine (daemon + Intelligence) | 🟢 COMPLETE |
-| 4 | Learning loop + Guardian | 🔴 not started |
+| 4 | Learning loop + Guardian | 🟢 COMPLETE |
 | 5 | Dashboard + Voice | 🔴 not started |
 | 6 | Integrations (Composio + MCP) | 🔴 not started |
 | 7 | Mass-produce departments | 🔴 not started |
@@ -67,9 +67,26 @@
 - [x] Intelligence sub-graph plugs into company graph as one node
 - [x] All `pytest` green (167 tests pass)
 
+## Phase 4 exit gate (must pass before Phase 5)
+- [x] Reflector reads outcomes from brain (`brain/reflector.py` — reads via `OutcomeStore.query_recent()`)
+- [x] Reflector identifies patterns and writes playbook notes tagged `#playbook` (failure, success, high-revision, tool-error, cost patterns)
+- [x] Proposers read playbooks via brain query (Architect + Scout query `#playbook/{dept}` before drafting)
+- [x] **Measurable improvement on a repeated task after reflection** (test_measurable_improvement: context grows, draft changes)
+- [x] `OutcomeStore` records outcomes and supports filtering (query_recent, query_by_department, query_failures)
+- [x] Guardian enforces permission levels on all tools (`agents/guardian.py`)
+- [x] `READ` tools execute without approval
+- [x] `WRITE` tools execute with logging
+- [x] `SHELL` tools pause for approval (human-in-the-loop via `request_approval`)
+- [x] `DESTRUCTIVE` tools pause for explicit approval + confirmation
+- [x] Human-in-the-loop interrupt works (pause → approve → resume via `set_approval_callback`)
+- [x] Kill switch stops all running graphs and saves state (`kill()`, `cost_ceiling_breach()`, `time_ceiling_breach()`)
+- [x] **No destructive action executes without an approval step** (Guardian checker + integration tests)
+- [x] Audit trail logs every permission check (`guardian.audit_log`)
+- [x] All `pytest` green (218 tests pass)
+
 ## Notes / blockers
-Phase 3 complete as of 2026-06-10. Ready for Phase 4.
-- Added pytest-asyncio dependency for async test support
-- Daemon uses synchronous `invoke()` (not `ainvoke()`) for simplicity — async can be added later
-- Intelligence agents use heuristic logic (stub data), real LLM calls come with model router wiring
-- Transient TimeoutError in pytest collection on Python 3.14 (filesystem issue, not code)
+Phase 4 complete as of 2026-06-12. Ready for Phase 5.
+- Guardian uses `set_approval_callback` for human-in-the-loop; LangGraph `interrupt()` integration deferred to Phase 5 dashboard wiring
+- Kill switch uses thread-safe global flag; daemon checks `is_killed()` to stop
+- Reflector pattern detection uses heuristic thresholds (≥2 failures, ≥2.0 avg revisions, 2x median tokens)
+- Playbook notes are additive — Reflector never deletes existing playbooks
