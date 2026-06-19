@@ -1,0 +1,2 @@
+- [Telemetry cross-cutting](project_layer_violation_telemetry.md) — infra.telemetry imported by brain+tools, skipping layers
+- [FileTool if-elif dispatch](project_filetool_if_elif_dispatch.md) — FileTool uses if-elif on operation string, violates rule 3

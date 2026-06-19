@@ -1,4 +1,3 @@
-from brain.playbook import get_playbooks
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -9,9 +8,8 @@ class Architect:
     name = "engineering.architect"
     role = "proposer"
 
-    def __init__(self, librarian=None, obsidian=None):
+    def __init__(self, librarian=None):
         self._librarian = librarian
-        self._obsidian = obsidian
 
     async def run(self, state: AgentState) -> AgentState:
         request = state.get("request", "")
@@ -23,16 +21,7 @@ class Architect:
                 {"title": n.title, "content": n.content} for n in notes
             ]
 
-        if self._obsidian:
-            playbooks = get_playbooks("engineering", self._obsidian)
-            for pb in playbooks:
-                brain_context.append(
-                    {"title": pb.title, "content": pb.content}
-                )
-
         draft = f"Plan for: {request}\n"
-        if brain_context:
-            draft += f"Context: consulted {len(brain_context)} brain notes (including playbooks)\n"
         draft += "Steps:\n"
         draft += "1. Analyze requirements\n"
         draft += "2. Design solution architecture\n"

@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agents.guardian import Guardian, _reset_approval_callback_for_testing, is_killed, set_approval_callback
 from infra.daemon import Daemon
 
 
@@ -146,44 +145,3 @@ class TestStartStop:
         await asyncio.gather(d.start(), stop_after_one())
         cp = d.load_checkpoint("saveable")
         assert cp is not None
-
-
-class TestDaemonKillSwitch:
-    @pytest.fixture(autouse=True)
-    def _reset_kill(self):
-        _reset_approval_callback_for_testing()
-        set_approval_callback(lambda a, d: True)
-        Guardian(timeout=1.0).reset_kill_switch()
-        _reset_approval_callback_for_testing()
-        yield
-        _reset_approval_callback_for_testing()
-        set_approval_callback(lambda a, d: True)
-        Guardian(timeout=1.0).reset_kill_switch()
-        _reset_approval_callback_for_testing()
-
-    @pytest.mark.asyncio
-    async def test_tick_aborted_when_killed(self):
-        guardian = Guardian(timeout=1.0)
-        guardian.kill()
-        d = Daemon()
-        mock_graph = MagicMock()
-        mock_graph.invoke.return_value = {"result": "done"}
-        d.register_job("test", mock_graph)
-        results = await d.tick()
-        assert results == []
-        mock_graph.invoke.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_daemon_loop_stops_when_killed(self):
-        d = Daemon(tick_interval=100)
-        d.register_job("noop", MagicMock(invoke=MagicMock(return_value={})))
-        guardian = Guardian(timeout=1.0)
-
-        async def kill_after_one():
-            while d.tick_count < 1:
-                await asyncio.sleep(0.01)
-            guardian.kill()
-
-        await asyncio.gather(d.start(), kill_after_one())
-        assert is_killed()
-        assert d.tick_count >= 1

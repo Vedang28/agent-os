@@ -1,6 +1,5 @@
 import json
 
-from brain.playbook import get_playbooks
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -35,9 +34,8 @@ class Scout:
     name = "intelligence.scout"
     role = "proposer"
 
-    def __init__(self, librarian=None, obsidian=None):
+    def __init__(self, librarian=None):
         self._librarian = librarian
-        self._obsidian = obsidian
 
     async def run(self, state: AgentState) -> AgentState:
         request = state.get("request", "")
@@ -48,13 +46,6 @@ class Scout:
             brain_context = [
                 {"title": n.title, "content": n.content} for n in notes
             ]
-
-        if self._obsidian:
-            playbooks = get_playbooks("intelligence", self._obsidian)
-            for pb in playbooks:
-                brain_context.append(
-                    {"title": pb.title, "content": pb.content}
-                )
 
         known_titles = {ctx.get("title", "") for ctx in brain_context}
         items = [
