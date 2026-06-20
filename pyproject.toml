@@ -13,6 +13,10 @@ dependencies = [
     "pydantic>=2.0",
     "qdrant-client>=1.9",
     "httpx>=0.28",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "slowapi>=0.1.9",
+    "playwright>=1.40",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +29,7 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["core*", "agents*", "tools*", "brain*", "integrations*", "io*", "infra*"]
+include = ["core*", "agents*", "tools*", "brain*", "integrations*", "io_layer*", "infra*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

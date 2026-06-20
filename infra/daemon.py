@@ -65,6 +65,15 @@ class Daemon:
         tick_start = time.monotonic()
         logger.info("tick %d starting, jobs=%d", self._tick_count, len(self._jobs))
 
+        try:
+            from io_layer.event_bus import TICK_START, publish_event
+
+            await publish_event(
+                TICK_START, tick=self._tick_count, jobs=len(self._jobs)
+            )
+        except Exception:
+            pass
+
         results = []
         for job_name, job in self._jobs.items():
             elapsed = time.monotonic() - tick_start
@@ -92,6 +101,16 @@ class Daemon:
             len(results),
         )
         self._last_tick_results = results
+
+        try:
+            from io_layer.event_bus import TICK_COMPLETE, publish_event
+
+            await publish_event(
+                TICK_COMPLETE, tick=self._tick_count, results=len(results)
+            )
+        except Exception:
+            pass
+
         return results
 
     async def _run_job(self, job: JobRecord) -> dict:

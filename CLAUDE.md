@@ -30,7 +30,7 @@ Autonomous multi-agent company. Society-of-mind: CEO orchestrator → divisions 
 9. **Every department ships one eval test** that runs in CI.
 
 ## Conventions
-- One folder per layer: `/core /agents /tools /brain /integrations /io /infra /dashboard`
+- One folder per layer: `/core /agents /tools /brain /integrations /io_layer /infra /dashboard`
 - New department = ~4 class files + a sub-graph + ONE registry line. Copy the Engineering pattern.
 - Tests mirror the layer folders.
 - Phase gates are mandatory: do NOT start the next phase until the current phase's exit gate passes.

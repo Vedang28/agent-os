@@ -36,6 +36,14 @@ def _instant_response(state: AgentState) -> dict:
 
 def _department_node(state: AgentState) -> dict:
     department = state.get("department", "")
+
+    try:
+        from io_layer.event_bus import DEPARTMENT_ACTIVE, TASK_COMPLETE, sync_publish
+
+        sync_publish(DEPARTMENT_ACTIVE, department=department)
+    except Exception:
+        pass
+
     graph = _department_graphs.get(department)
     if graph is None:
         logger.error("no graph registered for department=%s", department)
@@ -45,7 +53,8 @@ def _department_node(state: AgentState) -> dict:
     except Exception as e:
         logger.error("department=%s failed: %s", department, e)
         return {"result": f"Department error: {e}", "approved": False}
-    return {
+
+    output = {
         "draft": result.get("draft"),
         "result": result.get("result"),
         "critique": result.get("critique"),
@@ -53,6 +62,20 @@ def _department_node(state: AgentState) -> dict:
         "revisions": result.get("revisions", 0),
         "brain_context": result.get("brain_context", []),
     }
+
+    try:
+        from io_layer.event_bus import TASK_COMPLETE, sync_publish
+
+        sync_publish(
+            TASK_COMPLETE,
+            department=department,
+            success=output["approved"],
+            revisions=output["revisions"],
+        )
+    except Exception:
+        pass
+
+    return output
 
 
 def build_company_graph():

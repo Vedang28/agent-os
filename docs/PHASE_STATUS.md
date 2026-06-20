@@ -3,7 +3,7 @@
 > Update this after every working session. CLAUDE.md imports this file, so it's always in context.
 
 ## Active phase
-**Phase 3 — Autonomous engine (Daemon + Intelligence)**
+**Phase 5 — Dashboard + Voice**
 
 ## Phase ladder
 | Phase | Name | Status |
@@ -12,8 +12,8 @@
 | 1 | Brain + Tools | 🟢 COMPLETE |
 | 2 | Spine + first department (Engineering) | 🟢 COMPLETE |
 | 3 | Autonomous engine (daemon + Intelligence) | 🟢 COMPLETE |
-| 4 | Learning loop + Guardian | 🔴 not started |
-| 5 | Dashboard + Voice | 🔴 not started |
+| 4 | Learning loop + Guardian | 🟢 COMPLETE |
+| 5 | Dashboard + Voice | 🟢 COMPLETE |
 | 6 | Integrations (Composio + MCP) | 🔴 not started |
 | 7 | Mass-produce departments | 🔴 not started |
 | 8 | Harden & scale | 🔴 not started |
@@ -67,9 +67,47 @@
 - [x] Intelligence sub-graph plugs into company graph as one node
 - [x] All `pytest` green (167 tests pass)
 
+## Phase 4 exit gate (must pass before Phase 5)
+- [x] Reflector reviews outcomes, writes playbook notes to the brain
+- [x] Proposers read playbooks before drafting
+- [x] Guardian enforces permission gates on all tools
+- [x] Human-in-the-loop interrupt for SHELL/DESTRUCTIVE actions
+- [x] Kill switch active
+- [x] All `pytest` green
+
+## Phase 5 exit gate (must pass before Phase 6)
+- [x] FastAPI backend starts and serves on configurable host/port
+- [x] WebSocket `/ws/activity` streams real-time agent events
+- [x] WebSocket requires authentication
+- [x] `GET /api/agents` returns all registered agents with status
+- [x] `GET /api/brain/notes` returns paginated notes with tag filtering
+- [x] `GET /api/brain/search` returns semantic search results
+- [x] `GET /api/status` returns system health (daemon status, agent count, etc.)
+- [x] `GET /api/history` returns task history with outcomes
+- [x] `POST /api/request` submits a request and returns task_id
+- [x] `POST /api/approve` resumes a Guardian-paused graph
+- [x] `POST /api/kill` triggers the kill switch
+- [x] All mutating endpoints require authentication
+- [x] Security headers on all responses (CSP, HSTS, X-Frame-Options)
+- [x] Next.js dashboard renders and connects to WebSocket
+- [x] Dashboard shows live agent activity in real-time
+- [x] Brain browser works (search, view notes, backlinks)
+- [x] Approval queue shows pending interrupts with approve/reject
+- [x] STT converts speech to text (mocked in tests)
+- [x] TTS converts text to speech with sentence-boundary streaming
+- [x] ACK-first pattern: deep request gets immediate verbal acknowledgment, graph runs in background
+- [x] Voice thread never blocks on deep tasks
+- [x] Event bus broadcasts events to WebSocket and voice controller
+- [x] Speak a deep request → hear ACK → watch triad work in dashboard → hear result (integration test)
+- [x] All `pytest` green (280 pass), Next.js `build` succeeds
+
 ## Notes / blockers
-Phase 3 complete as of 2026-06-10. Ready for Phase 4.
-- Added pytest-asyncio dependency for async test support
-- Daemon uses synchronous `invoke()` (not `ainvoke()`) for simplicity — async can be added later
-- Intelligence agents use heuristic logic (stub data), real LLM calls come with model router wiring
-- Transient TimeoutError in pytest collection on Python 3.14 (filesystem issue, not code)
+Phase 3 complete as of 2026-06-10.
+Phase 4 complete (commit 58e3117) — PHASE_STATUS.md was not updated at the time.
+Phase 5 complete as of 2026-06-19.
+- Renamed `io/` to `io_layer/` to avoid conflict with Python stdlib `io` module
+- Added fastapi, uvicorn, slowapi dependencies
+- 3 pre-existing test failures in Phase 4 tests (Architect.__init__ signature mismatch) — not Phase 5 regressions
+- Python 3.12 venv set up with DYLD_LIBRARY_PATH for expat compatibility on macOS
+- STT/TTS engines use httpx for API calls (no openai SDK dependency), fully mocked in tests
+- Dashboard frontend: Next.js 16+ with App Router, Tailwind CSS

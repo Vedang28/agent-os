@@ -1,0 +1,236 @@
+from __future__ import annotations
+
+import asyncio
+import uuid
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from infra.telemetry import get_logger
+from io_layer.dashboard_api.auth import require_auth
+from io_layer.dashboard_api.models import (
+    AgentResponse,
+    ApprovalBody,
+    HistoryItem,
+    HistoryResponse,
+    KillBody,
+    NoteResponse,
+    NotesListResponse,
+    RequestBody,
+    RequestResponse,
+    SearchResultResponse,
+    StatusResponse,
+)
+
+logger = get_logger("io.dashboard_api.routes")
+
+router = APIRouter(prefix="/api")
+
+_services: dict[str, Any] = {}
+_active_tasks: dict[str, asyncio.Task] = {}
+_pending_approvals: dict[str, dict] = {}
+
+
+def set_services(
+    *,
+    obsidian: Any = None,
+    librarian: Any = None,
+    outcome_store: Any = None,
+    daemon: Any = None,
+    guardian: Any = None,
+    graph_factory: Any = None,
+) -> None:
+    if obsidian is not None:
+        _services["obsidian"] = obsidian
+    if librarian is not None:
+        _services["librarian"] = librarian
+    if outcome_store is not None:
+        _services["outcome_store"] = outcome_store
+    if daemon is not None:
+        _services["daemon"] = daemon
+    if guardian is not None:
+        _services["guardian"] = guardian
+    if graph_factory is not None:
+        _services["graph_factory"] = graph_factory
+
+
+def _get(name: str) -> Any:
+    svc = _services.get(name)
+    if svc is None:
+        raise HTTPException(status_code=503, detail=f"Service not available: {name}")
+    return svc
+
+
+@router.get("/agents", response_model=list[AgentResponse])
+async def list_agents() -> list[AgentResponse]:
+    from agents import registry as agent_registry
+
+    names = agent_registry.list_agents()
+    results = []
+    for name in names:
+        parts = name.split(".")
+        dept = parts[0] if len(parts) > 1 else ""
+        results.append(AgentResponse(name=name, department=dept))
+    return results
+
+
+@router.get("/brain/notes", response_model=NotesListResponse)
+async def list_brain_notes(
+    tag: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> NotesListResponse:
+    obsidian = _get("obsidian")
+    titles = obsidian.list_notes()
+
+    notes: list[NoteResponse] = []
+    for title in titles:
+        try:
+            note = obsidian.read_note(title)
+        except FileNotFoundError:
+            continue
+        if tag and tag not in note.tags:
+            continue
+        notes.append(
+            NoteResponse(
+                title=note.title,
+                content=note.content,
+                tags=note.tags,
+                created_at=note.created_at.isoformat() if note.created_at else "",
+            )
+        )
+
+    total = len(notes)
+    page = notes[offset : offset + limit]
+    return NotesListResponse(notes=page, total=total)
+
+
+@router.get("/brain/search", response_model=SearchResultResponse)
+async def search_brain(
+    q: str = Query(..., min_length=1, max_length=500),
+    top_k: int = Query(5, ge=1, le=50),
+) -> SearchResultResponse:
+    librarian = _get("librarian")
+    results = librarian.query(q, top_k=top_k)
+    return SearchResultResponse(
+        results=[
+            NoteResponse(
+                title=n.title,
+                content=n.content,
+                tags=n.tags,
+                created_at=n.created_at.isoformat() if n.created_at else "",
+            )
+            for n in results
+        ],
+        query=q,
+    )
+
+
+@router.get("/status", response_model=StatusResponse)
+async def system_status() -> StatusResponse:
+    from agents import registry as agent_registry
+    from tools import registry as tool_registry
+
+    daemon = _services.get("daemon")
+    return StatusResponse(
+        daemon="running" if daemon and daemon.is_running else "stopped",
+        tick_count=daemon.tick_count if daemon else 0,
+        agents_registered=len(agent_registry.list_agents()),
+        tools_registered=len(tool_registry.list_tools()),
+    )
+
+
+@router.get("/history", response_model=HistoryResponse)
+async def task_history(
+    department: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+) -> HistoryResponse:
+    outcome_store = _get("outcome_store")
+    if department:
+        outcomes = outcome_store.query_by_department(department)
+    else:
+        outcomes = outcome_store.query_recent(n=limit)
+
+    tasks = [
+        HistoryItem(
+            task_id=o.task_id,
+            department=o.department,
+            success=o.success,
+            revisions=o.revisions,
+            tokens_used=o.tokens_used,
+            wall_clock_seconds=o.wall_clock_seconds,
+            timestamp=o.timestamp,
+        )
+        for o in outcomes[:limit]
+    ]
+    return HistoryResponse(tasks=tasks, total=len(tasks))
+
+
+@router.post("/request", response_model=RequestResponse, status_code=202)
+async def submit_request(
+    body: RequestBody,
+    _token: str = Depends(require_auth),
+) -> RequestResponse:
+    graph_factory = _get("graph_factory")
+    task_id = str(uuid.uuid4())
+
+    from core.dispatcher import assign_lane
+
+    lane_result = assign_lane({"request": body.request})
+    lane = lane_result.get("lane", "fast")
+
+    async def _run() -> None:
+        try:
+            graph = graph_factory()
+            await asyncio.to_thread(
+                graph.invoke,
+                {"request": body.request},
+                {"configurable": {"thread_id": task_id}},
+            )
+        except Exception:
+            logger.exception("background task %s failed", task_id)
+        finally:
+            _active_tasks.pop(task_id, None)
+
+    task = asyncio.create_task(_run())
+    _active_tasks[task_id] = task
+
+    try:
+        from io_layer.event_bus import REQUEST_SUBMITTED, publish_event
+
+        await publish_event(
+            REQUEST_SUBMITTED, task_id=task_id, request=body.request, lane=lane
+        )
+    except Exception:
+        pass
+
+    return RequestResponse(task_id=task_id, lane=lane)
+
+
+@router.post("/approve")
+async def approve_action(
+    body: ApprovalBody,
+    _token: str = Depends(require_auth),
+) -> dict:
+    guardian = _get("guardian")
+
+    pending = _pending_approvals.pop(body.task_id, None)
+    if pending is None:
+        raise HTTPException(status_code=404, detail="No pending approval for this task")
+
+    callback = pending.get("resolve")
+    if callback:
+        callback(body.approved)
+
+    return {"task_id": body.task_id, "approved": body.approved, "status": "resolved"}
+
+
+@router.post("/kill")
+async def kill_switch(
+    body: KillBody,
+    _token: str = Depends(require_auth),
+) -> dict:
+    guardian = _get("guardian")
+    guardian.kill()
+    logger.warning("kill switch activated via API: %s", body.reason)
+    return {"status": "killed", "reason": body.reason}

@@ -138,6 +138,18 @@ class Guardian:
         entry["approved"] = approved
         self._log_audit(entry)
 
+        try:
+            from io_layer.event_bus import APPROVAL_REQUEST, sync_publish
+
+            sync_publish(
+                APPROVAL_REQUEST,
+                action=action,
+                approved=approved,
+                details=details or {},
+            )
+        except Exception:
+            pass
+
         logger.info("approval result for '%s': %s", action, approved)
         return approved
 
@@ -149,6 +161,13 @@ class Guardian:
             "timestamp": time.time(),
             "reason": "manual_kill",
         })
+
+        try:
+            from io_layer.event_bus import KILL_SWITCH, sync_publish
+
+            sync_publish(KILL_SWITCH, reason="manual_kill")
+        except Exception:
+            pass
 
     def cost_ceiling_breach(self, tokens_used: int, ceiling: int) -> None:
         if tokens_used >= ceiling:
