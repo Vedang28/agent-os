@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from pydantic import BaseModel
@@ -115,7 +116,7 @@ class ComposioBridge:
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
-                f"{self._config.base_url}/actions/{action}/execute",
+                f"{self._config.base_url}/actions/{quote(action, safe='')}/execute",
                 headers=self._headers(),
                 json={
                     "connectedAccountId": app_name,

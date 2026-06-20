@@ -65,7 +65,7 @@ def test_discover_tools(bridge):
             json={
                 "tools": [
                     {"name": "search", "description": "Search docs", "permission": "read"},
-                    {"name": "deploy", "description": "Deploy app", "permission": "execute"},
+                    {"name": "deploy", "description": "Deploy app", "permission": "write"},
                 ]
             },
         )
@@ -78,7 +78,8 @@ def test_discover_tools(bridge):
             kwargs["transport"] = transport
             original_init(self, **kwargs)
 
-        with patch.object(httpx.AsyncClient, "__init__", patched_init):
+        with patch.object(httpx.AsyncClient, "__init__", patched_init), \
+             patch.object(bridge, "_check_url"):
             return await bridge.discover_tools("tools1")
 
     tools = asyncio.run(run())
@@ -86,7 +87,7 @@ def test_discover_tools(bridge):
     assert tools[0].name == "mcp.tools1.search"
     assert tools[0].permission == Permission.READ
     assert tools[1].name == "mcp.tools1.deploy"
-    assert tools[1].permission == Permission.SHELL
+    assert tools[1].permission == Permission.WRITE
 
 
 def test_discover_tools_not_connected(bridge):
@@ -111,7 +112,8 @@ def test_call_tool(bridge):
             kwargs["transport"] = transport
             original_init(self, **kwargs)
 
-        with patch.object(httpx.AsyncClient, "__init__", patched_init):
+        with patch.object(httpx.AsyncClient, "__init__", patched_init), \
+             patch.object(bridge, "_check_url"):
             return await bridge.call_tool("s1", "search", {"q": "test"})
 
     result = asyncio.run(run())

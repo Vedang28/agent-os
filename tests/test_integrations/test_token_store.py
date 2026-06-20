@@ -64,3 +64,19 @@ def test_key_from_env(tmp_path, monkeypatch):
     s = TokenStore(store_dir=tmp_path)
     s.store_token("test", {"v": "1"})
     assert s.get_token("test") == {"v": "1"}
+
+
+def test_path_traversal_blocked(store):
+    with pytest.raises(ValueError, match="Invalid app_name"):
+        store.store_token("../../etc/evil", {"t": "1"})
+
+
+def test_path_traversal_slashes_blocked(store):
+    with pytest.raises(ValueError, match="Invalid app_name"):
+        store.store_token("foo/bar", {"t": "1"})
+
+
+def test_valid_app_names(store):
+    for name in ["gmail", "my-app", "app_v2", "Notion"]:
+        store.store_token(name, {"t": "1"})
+        assert store.get_token(name) == {"t": "1"}

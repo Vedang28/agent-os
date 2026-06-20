@@ -3,7 +3,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import socket
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 from pydantic import BaseModel
@@ -95,6 +95,8 @@ class MCPBridge:
         if not server:
             raise ValueError(f"Not connected to MCP server: {server_name}")
 
+        self._check_url(server.url)
+
         headers: dict[str, str] = {"Content-Type": "application/json"}
         if server.auth_token:
             headers["Authorization"] = f"Bearer {server.auth_token}"
@@ -111,8 +113,8 @@ class MCPBridge:
         for tool_def in data.get("tools", []):
             name = tool_def.get("name", "unknown")
             desc = tool_def.get("description", "")
-            perm_hint = tool_def.get("permission", "read").lower()
-            permission = PERMISSION_MAP.get(perm_hint, Permission.READ)
+            perm_hint = tool_def.get("permission", "execute").lower()
+            permission = PERMISSION_MAP.get(perm_hint, Permission.SHELL)
 
             tools.append(
                 MCPTool(
@@ -140,10 +142,12 @@ class MCPBridge:
         if server.auth_token:
             headers["Authorization"] = f"Bearer {server.auth_token}"
 
+        self._check_url(server.url)
+
         logger.info("calling MCP tool=%s on server=%s", tool_name, server_name)
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
-                f"{server.url}/tools/{tool_name}/call",
+                f"{server.url}/tools/{quote(tool_name, safe='')}/call",
                 headers=headers,
                 json=args,
             )

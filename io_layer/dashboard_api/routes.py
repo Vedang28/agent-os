@@ -256,7 +256,9 @@ async def list_integrations() -> IntegrationListResponse:
     bridge = _services.get("composio_bridge")
     if bridge:
         connected = await bridge.list_connected_apps()
-        for app in ["gmail", "notion", "slack", "github", "calendar"]:
+        from integrations.composio import APP_SCOPES
+
+        for app in APP_SCOPES:
             tools_count = len(tool_registry.list_tools(namespace=f"composio.{app}"))
             items.append(
                 IntegrationInfo(
