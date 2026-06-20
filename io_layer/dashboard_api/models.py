@@ -66,3 +66,31 @@ class ApprovalBody(BaseModel):
 
 class KillBody(BaseModel):
     reason: str = "manual"
+
+
+class IntegrationInfo(BaseModel):
+    name: str
+    type: str  # "composio" | "mcp"
+    connected: bool
+    tools_count: int = 0
+
+
+class IntegrationListResponse(BaseModel):
+    integrations: list[IntegrationInfo]
+    total: int
+
+
+class ConnectBody(BaseModel):
+    app_name: str = Field(..., min_length=1, max_length=100)
+
+
+class ConnectResponse(BaseModel):
+    app_name: str
+    auth_url: str
+    scopes: list[str]
+
+
+class IntegrationToolInfo(BaseModel):
+    name: str
+    permission: str
+    integration: str

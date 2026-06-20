@@ -1,6 +1,8 @@
 import type {
   AgentInfo,
   HistoryResponse,
+  IntegrationListResponse,
+  IntegrationToolInfo,
   NotesListResponse,
   RequestResponse,
   SearchResultResponse,
@@ -91,4 +93,28 @@ export async function killSwitch(reason = "manual"): Promise<void> {
     method: "POST",
     body: JSON.stringify({ reason }),
   });
+}
+
+export async function getIntegrations(): Promise<IntegrationListResponse> {
+  return fetchApi<IntegrationListResponse>("/api/integrations");
+}
+
+export async function connectIntegration(
+  appName: string
+): Promise<{ app_name: string; auth_url: string; scopes: string[] }> {
+  return fetchApi("/api/integrations/connect", {
+    method: "POST",
+    body: JSON.stringify({ app_name: appName }),
+  });
+}
+
+export async function disconnectIntegration(appName: string): Promise<void> {
+  await fetchApi("/api/integrations/disconnect", {
+    method: "POST",
+    body: JSON.stringify({ app_name: appName }),
+  });
+}
+
+export async function getIntegrationTools(): Promise<IntegrationToolInfo[]> {
+  return fetchApi<IntegrationToolInfo[]>("/api/integrations/tools");
 }

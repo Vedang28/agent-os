@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/brain", label: "Brain" },
   { href: "/history", label: "History" },
   { href: "/approvals", label: "Approvals" },
+  { href: "/integrations", label: "Integrations" },
 ];
 
 export default function RootLayout({

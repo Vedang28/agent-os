@@ -45,3 +45,6 @@ htmlcov/
 # Build artifacts
 *.sqlite
 *.db
+
+# Agent OS token store (encrypted OAuth tokens — NEVER commit)
+.agent-os/

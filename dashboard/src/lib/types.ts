@@ -57,3 +57,21 @@ export interface AgentEvent {
   timestamp: string;
   data: Record<string, unknown>;
 }
+
+export interface IntegrationInfo {
+  name: string;
+  type: "composio" | "mcp";
+  connected: boolean;
+  tools_count: number;
+}
+
+export interface IntegrationListResponse {
+  integrations: IntegrationInfo[];
+  total: number;
+}
+
+export interface IntegrationToolInfo {
+  name: string;
+  permission: string;
+  integration: string;
+}

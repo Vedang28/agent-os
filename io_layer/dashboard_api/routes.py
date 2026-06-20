@@ -11,8 +11,13 @@ from io_layer.dashboard_api.auth import require_auth
 from io_layer.dashboard_api.models import (
     AgentResponse,
     ApprovalBody,
+    ConnectBody,
+    ConnectResponse,
     HistoryItem,
     HistoryResponse,
+    IntegrationInfo,
+    IntegrationListResponse,
+    IntegrationToolInfo,
     KillBody,
     NoteResponse,
     NotesListResponse,
@@ -39,6 +44,8 @@ def set_services(
     daemon: Any = None,
     guardian: Any = None,
     graph_factory: Any = None,
+    composio_bridge: Any = None,
+    mcp_bridge: Any = None,
 ) -> None:
     if obsidian is not None:
         _services["obsidian"] = obsidian
@@ -52,6 +59,10 @@ def set_services(
         _services["guardian"] = guardian
     if graph_factory is not None:
         _services["graph_factory"] = graph_factory
+    if composio_bridge is not None:
+        _services["composio_bridge"] = composio_bridge
+    if mcp_bridge is not None:
+        _services["mcp_bridge"] = mcp_bridge
 
 
 def _get(name: str) -> Any:
@@ -234,3 +245,98 @@ async def kill_switch(
     guardian.kill()
     logger.warning("kill switch activated via API: %s", body.reason)
     return {"status": "killed", "reason": body.reason}
+
+
+@router.get("/integrations", response_model=IntegrationListResponse)
+async def list_integrations() -> IntegrationListResponse:
+    from tools import registry as tool_registry
+
+    items: list[IntegrationInfo] = []
+
+    bridge = _services.get("composio_bridge")
+    if bridge:
+        connected = await bridge.list_connected_apps()
+        for app in ["gmail", "notion", "slack", "github", "calendar"]:
+            tools_count = len(tool_registry.list_tools(namespace=f"composio.{app}"))
+            items.append(
+                IntegrationInfo(
+                    name=app,
+                    type="composio",
+                    connected=app in connected,
+                    tools_count=tools_count,
+                )
+            )
+
+    mcp = _services.get("mcp_bridge")
+    if mcp:
+        servers = await mcp.list_servers()
+        for server in servers:
+            tools_count = len(tool_registry.list_tools(namespace=f"mcp.{server}"))
+            items.append(
+                IntegrationInfo(
+                    name=server,
+                    type="mcp",
+                    connected=True,
+                    tools_count=tools_count,
+                )
+            )
+
+    return IntegrationListResponse(integrations=items, total=len(items))
+
+
+@router.post("/integrations/connect", response_model=ConnectResponse)
+async def connect_integration(
+    body: ConnectBody,
+    _token: str = Depends(require_auth),
+) -> ConnectResponse:
+    bridge = _services.get("composio_bridge")
+    if not bridge:
+        raise HTTPException(status_code=503, detail="Composio bridge not configured")
+    result = await bridge.connect_app(body.app_name)
+    return ConnectResponse(
+        app_name=result.app_name,
+        auth_url=result.auth_url,
+        scopes=result.scopes,
+    )
+
+
+@router.post("/integrations/disconnect")
+async def disconnect_integration(
+    body: ConnectBody,
+    _token: str = Depends(require_auth),
+) -> dict:
+    bridge = _services.get("composio_bridge")
+    if not bridge:
+        raise HTTPException(status_code=503, detail="Composio bridge not configured")
+    await bridge.disconnect_app(body.app_name)
+    return {"app_name": body.app_name, "status": "disconnected"}
+
+
+@router.get("/integrations/tools", response_model=list[IntegrationToolInfo])
+async def list_integration_tools() -> list[IntegrationToolInfo]:
+    from tools import registry as tool_registry
+
+    result: list[IntegrationToolInfo] = []
+    for name in tool_registry.list_tools(namespace="composio"):
+        tool = tool_registry.get(name)
+        parts = name.split(".")
+        integration = parts[1] if len(parts) > 1 else "unknown"
+        result.append(
+            IntegrationToolInfo(
+                name=name,
+                permission=tool.permission.value,
+                integration=integration,
+            )
+        )
+    for name in tool_registry.list_tools(namespace="mcp"):
+        tool = tool_registry.get(name)
+        parts = name.split(".")
+        integration = parts[1] if len(parts) > 1 else "unknown"
+        result.append(
+            IntegrationToolInfo(
+                name=name,
+                permission=tool.permission.value,
+                integration=integration,
+            )
+        )
+    return result

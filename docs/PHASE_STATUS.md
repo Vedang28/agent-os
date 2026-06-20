@@ -3,7 +3,7 @@
 > Update this after every working session. CLAUDE.md imports this file, so it's always in context.
 
 ## Active phase
-**Phase 5 — Dashboard + Voice**
+**Phase 6 — Integrations (Composio + MCP)**
 
 ## Phase ladder
 | Phase | Name | Status |
@@ -14,7 +14,7 @@
 | 3 | Autonomous engine (daemon + Intelligence) | 🟢 COMPLETE |
 | 4 | Learning loop + Guardian | 🟢 COMPLETE |
 | 5 | Dashboard + Voice | 🟢 COMPLETE |
-| 6 | Integrations (Composio + MCP) | 🔴 not started |
+| 6 | Integrations (Composio + MCP) | 🟢 COMPLETE |
 | 7 | Mass-produce departments | 🔴 not started |
 | 8 | Harden & scale | 🔴 not started |
 
@@ -101,6 +101,24 @@
 - [x] Speak a deep request → hear ACK → watch triad work in dashboard → hear result (integration test)
 - [x] All `pytest` green (280 pass), Next.js `build` succeeds
 
+## Phase 6 exit gate (must pass before Phase 7)
+- [x] `ComposioBridge` connects and manages OAuth flows (mocked in tests)
+- [x] Composio tools register in the tool registry with namespaced names
+- [x] Each Composio tool declares the correct `Permission` level
+- [x] `GmailReadTool` reads emails (Permission.READ)
+- [x] `GmailSendTool` sends emails (Permission.WRITE)
+- [x] `GmailDeleteTool` deletes emails (Permission.DESTRUCTIVE, requires Guardian approval)
+- [x] `NotionWriteTool` creates a page (Permission.WRITE)
+- [x] `GitHubCreateIssueTool` creates an issue (Permission.WRITE)
+- [x] Guardian enforces permissions on all Composio tools (DESTRUCTIVE actions need approval)
+- [x] An agent reads Gmail and writes a Notion page via Composio, gated by permissions (integration test)
+- [x] Token storage encrypts tokens at rest, never logs or exposes them
+- [x] MCP bridge connects to a server and discovers tools
+- [x] MCP tools register in tool registry alongside Composio tools
+- [x] Dashboard integrations tab shows connected apps and tools
+- [x] Tool registry supports namespace filtering
+- [x] All `pytest` green
+
 ## Notes / blockers
 Phase 3 complete as of 2026-06-10.
 Phase 4 complete (commit 58e3117) — PHASE_STATUS.md was not updated at the time.
@@ -111,3 +129,11 @@ Phase 5 complete as of 2026-06-19.
 - Python 3.12 venv set up with DYLD_LIBRARY_PATH for expat compatibility on macOS
 - STT/TTS engines use httpx for API calls (no openai SDK dependency), fully mocked in tests
 - Dashboard frontend: Next.js 16+ with App Router, Tailwind CSS
+Phase 6 complete as of 2026-06-20.
+- Composio integration via httpx (no SDK dependency), fully mocked in tests
+- Token store uses cryptography.fernet, encrypted at rest in ~/.agent-os/tokens/
+- MCP bridge with SSRF protection on server URLs
+- 15 integration tools: Gmail (3), Notion (3), Slack (2), GitHub (3), Calendar (2), plus dynamic MCP tools
+- Tool registry supports namespace filtering (backward compatible)
+- Dashboard integrations page with connect/disconnect + tool inventory
+- Scout uses Slack tools, Scaffolder uses GitHub tools when available

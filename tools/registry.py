@@ -13,8 +13,11 @@ def get(name: str) -> Tool:
     return _registry[name]
 
 
-def list_tools() -> list[str]:
-    return list(_registry.keys())
+def list_tools(namespace: str | None = None) -> list[str]:
+    if namespace is None:
+        return list(_registry.keys())
+    prefix = namespace + "."
+    return [k for k in _registry if k.startswith(prefix)]
 
 
 def clear() -> None:

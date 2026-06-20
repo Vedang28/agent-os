@@ -34,8 +34,9 @@ class Scout:
     name = "intelligence.scout"
     role = "proposer"
 
-    def __init__(self, librarian=None):
+    def __init__(self, librarian=None, tool_registry=None):
         self._librarian = librarian
+        self._tools = tool_registry
 
     async def run(self, state: AgentState) -> AgentState:
         request = state.get("request", "")
@@ -53,6 +54,22 @@ class Scout:
             for item in _STUB_ITEMS
             if item["title"] not in known_titles
         ]
+
+        if self._tools:
+            slack_tools = self._tools.list_tools(namespace="composio.slack")
+            if slack_tools:
+                try:
+                    slack_tool = self._tools.get("composio.slack.read")
+                    slack_data = await slack_tool.execute(channel="general", limit=5)
+                    items.append({
+                        "title": "Slack channel activity",
+                        "source": "Slack/general",
+                        "summary": slack_data[:500],
+                        "url": "",
+                        "relevance": "Real-time team communication.",
+                    })
+                except Exception:
+                    logger.warning("failed to read slack, continuing without it")
 
         draft = json.dumps(items, indent=2)
 
