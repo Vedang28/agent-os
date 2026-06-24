@@ -1,2 +1,4 @@
 - [Telemetry cross-cutting](project_layer_violation_telemetry.md) — infra.telemetry imported by brain+tools, skipping layers
 - [FileTool if-elif dispatch](project_filetool_if_elif_dispatch.md) — FileTool uses if-elif on operation string, violates rule 3
+- [Phase 6 layer violations](project_phase6_layer_violations.md) — integrations imports tools (upward), dashboard calls integrations directly
+- [Phase 8 review](project_phase8_review.md) — lane_analyzer upward import, checkpointer/cost_tracker need ADR

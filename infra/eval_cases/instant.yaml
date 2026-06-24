@@ -1,0 +1,15 @@
+- name: instant.greeting
+  department: ""
+  input_request: "hello"
+  expected_approved: true
+  expected_lane: instant
+  max_tokens: 1000
+  max_seconds: 5
+
+- name: instant.ping
+  department: ""
+  input_request: "ping"
+  expected_approved: true
+  expected_lane: instant
+  max_tokens: 1000
+  max_seconds: 5

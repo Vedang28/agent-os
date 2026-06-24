@@ -1,0 +1,16 @@
+- name: engineering.api_generation
+  department: engineering
+  input_request: "Build a REST API for user management with CRUD endpoints"
+  expected_approved: true
+  expected_lane: deep
+  expected_department: engineering
+  max_tokens: 50000
+  max_seconds: 60
+
+- name: engineering.auth_system
+  department: engineering
+  input_request: "Implement JWT authentication for the API"
+  expected_approved: true
+  expected_lane: deep
+  max_tokens: 50000
+  max_seconds: 60

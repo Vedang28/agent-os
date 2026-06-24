@@ -13,6 +13,8 @@ from io_layer.dashboard_api.models import (
     ApprovalBody,
     ConnectBody,
     ConnectResponse,
+    CostBurnRateResponse,
+    CostSummaryResponse,
     HistoryItem,
     HistoryResponse,
     IntegrationInfo,
@@ -46,6 +48,7 @@ def set_services(
     graph_factory: Any = None,
     composio_bridge: Any = None,
     mcp_bridge: Any = None,
+    cost_tracker: Any = None,
 ) -> None:
     if obsidian is not None:
         _services["obsidian"] = obsidian
@@ -63,6 +66,8 @@ def set_services(
         _services["composio_bridge"] = composio_bridge
     if mcp_bridge is not None:
         _services["mcp_bridge"] = mcp_bridge
+    if cost_tracker is not None:
+        _services["cost_tracker"] = cost_tracker
 
 
 def _get(name: str) -> Any:
@@ -342,3 +347,45 @@ async def list_integration_tools() -> list[IntegrationToolInfo]:
             )
         )
     return result
+
+
+@router.get("/costs", response_model=CostSummaryResponse)
+async def get_costs(_token: str = Depends(require_auth)) -> CostSummaryResponse:
+    tracker = _get("cost_tracker")
+    summary = tracker.get_total()
+    return CostSummaryResponse(
+        total_cost_usd=summary.total_cost_usd,
+        total_tokens=summary.total_tokens,
+        total_records=summary.total_records,
+        by_department=summary.by_department,
+        by_model=summary.by_model,
+        burn_rate_per_hour=summary.burn_rate_per_hour,
+    )
+
+
+@router.get("/costs/department/{dept}", response_model=CostSummaryResponse)
+async def get_costs_by_department(
+    dept: str, _token: str = Depends(require_auth)
+) -> CostSummaryResponse:
+    tracker = _get("cost_tracker")
+    summary = tracker.get_by_department(dept)
+    return CostSummaryResponse(
+        total_cost_usd=summary.total_cost_usd,
+        total_tokens=summary.total_tokens,
+        total_records=summary.total_records,
+        by_department=summary.by_department,
+        by_model=summary.by_model,
+        burn_rate_per_hour=summary.burn_rate_per_hour,
+    )
+
+
+@router.get("/costs/burn-rate", response_model=CostBurnRateResponse)
+async def get_burn_rate(
+    window_hours: float = Query(24.0, ge=1, le=720),
+    _token: str = Depends(require_auth),
+) -> CostBurnRateResponse:
+    tracker = _get("cost_tracker")
+    rate = tracker.get_burn_rate(window_hours=window_hours)
+    return CostBurnRateResponse(
+        burn_rate_usd_per_hour=rate, window_hours=window_hours,
+    )

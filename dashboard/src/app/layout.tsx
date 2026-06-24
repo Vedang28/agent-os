@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: "/history", label: "History" },
   { href: "/approvals", label: "Approvals" },
   { href: "/integrations", label: "Integrations" },
+  { href: "/costs", label: "Costs" },
 ];
 
 export default function RootLayout({

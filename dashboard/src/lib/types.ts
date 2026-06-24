@@ -75,3 +75,17 @@ export interface IntegrationToolInfo {
   permission: string;
   integration: string;
 }
+
+export interface CostSummary {
+  total_cost_usd: number;
+  total_tokens: number;
+  total_records: number;
+  by_department: Record<string, number>;
+  by_model: Record<string, number>;
+  burn_rate_per_hour: number;
+}
+
+export interface CostBurnRate {
+  burn_rate_usd_per_hour: number;
+  window_hours: number;
+}

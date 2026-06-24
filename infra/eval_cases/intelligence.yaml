@@ -1,0 +1,16 @@
+- name: intelligence.daily_briefing
+  department: intelligence
+  input_request: "Generate a daily intelligence briefing on market trends"
+  expected_approved: true
+  expected_lane: deep
+  expected_department: intelligence
+  max_tokens: 50000
+  max_seconds: 60
+
+- name: intelligence.research_analysis
+  department: intelligence
+  input_request: "Research and analyze trends in AI agent frameworks"
+  expected_approved: true
+  expected_lane: deep
+  max_tokens: 50000
+  max_seconds: 60

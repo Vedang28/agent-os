@@ -1,15 +1,3 @@
-from langgraph.checkpoint.memory import MemorySaver
+from infra.checkpointer import get_checkpointer, reset_checkpointer
 
-_checkpointer: MemorySaver | None = None
-
-
-def get_checkpointer() -> MemorySaver:
-    global _checkpointer
-    if _checkpointer is None:
-        _checkpointer = MemorySaver()
-    return _checkpointer
-
-
-def reset_checkpointer() -> None:
-    global _checkpointer
-    _checkpointer = None
+__all__ = ["get_checkpointer", "reset_checkpointer"]

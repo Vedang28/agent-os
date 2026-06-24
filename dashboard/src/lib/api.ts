@@ -1,5 +1,7 @@
 import type {
   AgentInfo,
+  CostBurnRate,
+  CostSummary,
   HistoryResponse,
   IntegrationListResponse,
   IntegrationToolInfo,
@@ -21,7 +23,7 @@ async function fetchApi<T>(
     ...(options?.headers as Record<string, string>),
   };
 
-  if (API_TOKEN && options?.method && options.method !== "GET") {
+  if (API_TOKEN) {
     headers["Authorization"] = `Bearer ${API_TOKEN}`;
   }
 
@@ -117,4 +119,16 @@ export async function disconnectIntegration(appName: string): Promise<void> {
 
 export async function getIntegrationTools(): Promise<IntegrationToolInfo[]> {
   return fetchApi<IntegrationToolInfo[]>("/api/integrations/tools");
+}
+
+export async function getCosts(): Promise<CostSummary> {
+  return fetchApi<CostSummary>("/api/costs");
+}
+
+export async function getCostsByDepartment(dept: string): Promise<CostSummary> {
+  return fetchApi<CostSummary>(`/api/costs/department/${encodeURIComponent(dept)}`);
+}
+
+export async function getCostsBurnRate(windowHours = 24): Promise<CostBurnRate> {
+  return fetchApi<CostBurnRate>(`/api/costs/burn-rate?window_hours=${windowHours}`);
 }

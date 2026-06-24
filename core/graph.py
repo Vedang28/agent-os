@@ -1,3 +1,5 @@
+import time
+
 from langgraph.graph import END, START, StateGraph
 
 from core.checkpointer import get_checkpointer
@@ -48,6 +50,7 @@ def _department_node(state: AgentState) -> dict:
     if graph is None:
         logger.error("no graph registered for department=%s", department)
         return {"result": f"No department graph for: {department}", "approved": False}
+    _start = time.monotonic()
     try:
         result = graph.invoke(dict(state))
     except Exception as e:
@@ -62,6 +65,23 @@ def _department_node(state: AgentState) -> dict:
         "revisions": result.get("revisions", 0),
         "brain_context": result.get("brain_context", []),
     }
+
+    try:
+        from infra.cost_tracker import CostRecord, get_cost_tracker
+
+        _elapsed = time.monotonic() - _start
+        tracker = get_cost_tracker()
+        tracker.record(CostRecord(
+            task_id=state.get("request", "")[:50],
+            department=department,
+            model="unknown",
+            tokens_input=0,
+            tokens_output=0,
+            cost_usd=0.0,
+            wall_clock_seconds=_elapsed,
+        ))
+    except Exception:
+        pass
 
     try:
         from io_layer.event_bus import TASK_COMPLETE, sync_publish

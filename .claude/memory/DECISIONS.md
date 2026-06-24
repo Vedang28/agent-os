@@ -24,5 +24,8 @@ Every department uses the triad. The critic can reject and send work back, bound
 ## 2026-06-20 — Dashboard API has direct read access to all service layers
 The dashboard API (`io_layer/dashboard_api/routes.py`) is an administrative interface that accesses services from any layer via dependency injection (`set_services`). This is an accepted exception to the strict layer rule for dashboard routes only. Non-dashboard I/O code (voice, CLI) must still respect the layer rule.
 
+## 2026-06-24 — Checkpointer and cost tracker are exempt from the strict layer rule
+`infra.checkpointer` and `infra.cost_tracker` may be imported by core/ modules. These are infrastructure singletons needed by every graph invocation — same rationale as telemetry (ADR 2026-06-05). `core/checkpointer.py` re-exports from `infra/checkpointer.py` for backward compatibility. `core/graph.py` records cost data via `infra.cost_tracker` in a try/except guard.
+
 ## 2026-05-29 14:42 — Unified agent-os: one product for all users
 No separate dev edition. One agent-os serves developers, marketers, engineers, sales — everyone. Claude Code workflow patterns (subagents, workflows, agent view, worktrees, persistent memory) are implemented INSIDE agent-os runtime so every user gets the full parallel orchestration experience. The daemon, brain, reflector, guardian, voice, and dashboard are what make it more than Claude Code.

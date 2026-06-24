@@ -94,3 +94,17 @@ class IntegrationToolInfo(BaseModel):
     name: str
     permission: str
     integration: str
+
+
+class CostSummaryResponse(BaseModel):
+    total_cost_usd: float = 0.0
+    total_tokens: int = 0
+    total_records: int = 0
+    by_department: dict[str, float] = {}
+    by_model: dict[str, float] = {}
+    burn_rate_per_hour: float = 0.0
+
+
+class CostBurnRateResponse(BaseModel):
+    burn_rate_usd_per_hour: float = 0.0
+    window_hours: float = 24.0

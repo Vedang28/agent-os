@@ -18,6 +18,7 @@ dependencies = [
     "slowapi>=0.1.9",
     "playwright>=1.40",
     "cryptography>=41.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,8 @@ dev = [
     "black>=24.0",
     "pre-commit>=3.0",
 ]
+postgres = ["langgraph-checkpoint-postgres>=0.1"]
+sqlite = ["langgraph-checkpoint-sqlite>=0.1"]
 
 [tool.setuptools.packages.find]
 include = ["core*", "agents*", "tools*", "brain*", "integrations*", "io_layer*", "infra*"]
