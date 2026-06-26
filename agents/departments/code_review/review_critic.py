@@ -1,6 +1,5 @@
 import json
 
-from agents.llm import call_llm
 from agents.prompts import CODE_REVIEW_CRITIC
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -36,16 +35,6 @@ class ReviewCritic:
 
         issues = self._review(result, draft)
 
-        llm_review = await call_llm(
-            task_type="code",
-            system=self.SYSTEM_PROMPT,
-            user=f"Draft/Plan:\n{draft}\n\nImplementation to review:\n{result}",
-        )
-        if "APPROVED" not in llm_review.upper() and llm_review.strip():
-            for line in llm_review.strip().split("\n"):
-                line = line.strip().lstrip("-•*123456789. ")
-                if line and line not in issues:
-                    issues.append(line)
 
         if issues:
             logger.info(

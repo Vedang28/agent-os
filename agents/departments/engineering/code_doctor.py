@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import ENGINEERING_CODE_DOCTOR
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -18,12 +17,6 @@ class CodeDoctor:
 
         issues = self._review(result, draft)
 
-        llm_review = await call_llm(
-            task_type="code",
-            system=self.SYSTEM_PROMPT,
-            user=f"Plan:\n{draft}\n\nImplementation:\n{result}",
-        )
-
         if issues:
             logger.info(
                 "code_doctor rejected, revisions=%d, reason=%s",
@@ -34,7 +27,6 @@ class CodeDoctor:
                 "critique": {
                     "reason": issues[0],
                     "suggestions": issues,
-                    "llm_review": llm_review,
                 },
                 "revisions": revisions + 1,
             }

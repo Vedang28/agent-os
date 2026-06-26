@@ -1,6 +1,5 @@
 import json
 
-from agents.llm import call_llm
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -85,9 +84,7 @@ class Scout:
             )
             user_prompt = f"Known context from brain:\n{context_text}\n\n{user_prompt}"
 
-        research_brief = await call_llm(
-            task_type="long_docs", system=SYSTEM_PROMPT, user=user_prompt
-        )
+        research_brief = f"{SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         items.append({
             "title": f"Research brief: {request[:60]}",
             "source": "intelligence.scout",

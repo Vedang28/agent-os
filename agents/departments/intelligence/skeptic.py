@@ -1,6 +1,5 @@
 import json
 
-from agents.llm import call_llm
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -28,12 +27,6 @@ class Skeptic:
 
         issues = self._review(briefing, state.get("brain_context", []))
 
-        llm_review = await call_llm(
-            task_type="long_docs",
-            system=SYSTEM_PROMPT,
-            user=f"Analyst briefing:\n{result}",
-        )
-
         if issues:
             logger.info(
                 "skeptic rejected, revisions=%d, reason=%s",
@@ -45,7 +38,6 @@ class Skeptic:
                 "critique": {
                     "reason": issues[0],
                     "suggestions": issues,
-                    "llm_review": llm_review,
                 },
                 "revisions": revisions + 1,
             }

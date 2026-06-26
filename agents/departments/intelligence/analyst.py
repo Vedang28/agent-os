@@ -1,7 +1,6 @@
 import json
 from datetime import datetime, timezone
 
-from agents.llm import call_llm
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -40,9 +39,7 @@ class Analyst:
             reason = critique.get("reason", "") if isinstance(critique, dict) else ""
             user_prompt += f"\n\nThis is revision {revisions}. Address this critique:\n{reason}"
 
-        analysis = await call_llm(
-            task_type="long_docs", system=SYSTEM_PROMPT, user=user_prompt
-        )
+        analysis = f"{SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
 
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         briefing = {

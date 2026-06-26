@@ -1,6 +1,5 @@
 from core.state import AgentState
 from infra.telemetry import get_logger
-from agents.llm import call_llm
 from agents.prompts import BUG_TRIAGE_CLASSIFIER
 
 logger = get_logger("bug_triage.bug_classifier")
@@ -44,8 +43,6 @@ class BugClassifier:
             )
             user_prompt = f"Context from brain:\n{context_text}\n\n{user_prompt}"
 
-        draft = await call_llm(
-            task_type="code", system=self.SYSTEM_PROMPT, user=user_prompt
-        )
+        draft = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("bug_classifier produced draft for request=%r", request[:80])
         return {"draft": draft, "brain_context": brain_context}

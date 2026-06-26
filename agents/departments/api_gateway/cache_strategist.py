@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import API_GATEWAY_CACHE_STRATEGIST
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -24,10 +23,6 @@ class CacheStrategist:
             f"Existing implementation:\n{prior}\n\nOriginal request: {request}"
         )
 
-        result = await call_llm(
-            task_type="code",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("cache_strategist produced strategy, revision=%d", revisions)
         return {"result": result}

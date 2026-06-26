@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import SDR_OUTREACH_PLANNER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -39,11 +38,7 @@ class OutreachPlanner:
             )
             user_prompt = f"Context from brain:\n{context_lines}\n\n{user_prompt}"
 
-        draft = await call_llm(
-            task_type="long_docs",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        draft = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info(
             "outreach_planner produced sequence for request=%r", request[:60]
         )

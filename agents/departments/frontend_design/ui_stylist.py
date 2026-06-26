@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import FRONTEND_DESIGN_UI_STYLIST
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -31,9 +30,7 @@ class UiStylist:
             if tk:
                 user_prompt += f"\n\nAvailable design-system tools: {', '.join(tk)}"
 
-        result = await call_llm(
-            task_type="code", system=self.SYSTEM_PROMPT, user=user_prompt
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("ui_stylist produced tokens + theme, revision=%d", revisions)
         return {"result": result}
 

@@ -1,6 +1,5 @@
 from core.state import AgentState
 from infra.telemetry import get_logger
-from agents.llm import call_llm
 from agents.prompts import DEV_TESTING_PLANNER
 
 logger = get_logger("dev_testing.test_planner")
@@ -43,8 +42,6 @@ class TestPlanner:
             )
             user_prompt = f"Context from brain:\n{context_text}\n\n{user_prompt}"
 
-        draft = await call_llm(
-            task_type="code", system=self.SYSTEM_PROMPT, user=user_prompt
-        )
+        draft = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("test_planner produced draft for request=%r", request[:80])
         return {"draft": draft, "brain_context": brain_context}

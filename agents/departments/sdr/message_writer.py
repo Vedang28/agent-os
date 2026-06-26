@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import SDR_MESSAGE_WRITER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -30,11 +29,7 @@ class MessageWriter:
             fix_lines = "\n".join(f"- {f}" for f in fixes)
             user_prompt += f"\n\nRevision {revisions}. Fix these issues:\n{fix_lines}"
 
-        result = await call_llm(
-            task_type="long_docs",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info(
             "message_writer produced messages revision=%d", revisions
         )

@@ -1,6 +1,5 @@
 from core.state import AgentState
 from infra.telemetry import get_logger
-from agents.llm import call_llm
 from agents.prompts import PERFORMANCE_OPTIMIZER
 
 logger = get_logger("performance.perf_optimizer")
@@ -27,10 +26,6 @@ class PerfOptimizer:
             for s in critique.get("suggestions", [critique.get("reason", "")]):
                 user_prompt += f"- {s}\n"
 
-        result = await call_llm(
-            task_type="code",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("perf_optimizer produced result, revision=%d", revisions)
         return {"result": result}

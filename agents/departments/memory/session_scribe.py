@@ -1,6 +1,5 @@
 from core.state import AgentState
 from infra.telemetry import get_logger
-from agents.llm import call_llm
 from agents.prompts import MEMORY_SESSION_SCRIBE
 
 logger = get_logger("memory.session_scribe")
@@ -43,8 +42,6 @@ class SessionScribe:
             )
             user_prompt = f"Context from brain:\n{context_text}\n\n{user_prompt}"
 
-        response = await call_llm(
-            task_type="long_docs", system=self.SYSTEM_PROMPT, user=user_prompt
-        )
+        response = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("session_scribe produced output for request=%r", request[:80])
         return {"draft": response, "result": response, "brain_context": brain_context}

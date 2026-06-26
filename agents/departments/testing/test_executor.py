@@ -1,6 +1,5 @@
 import re
 
-from agents.llm import call_llm
 from agents.prompts import TESTING_TEST_EXECUTOR
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -35,10 +34,8 @@ class TestExecutor:
             report += output + "\n\n"
             report += self._parse_results(output)
 
-        analysis = await call_llm(
-            task_type="code", system=self.SYSTEM_PROMPT,
-            user=f"Test suite:\n{suite}\n\nExecution report:\n{report}",
-        )
+        user_prompt = f"Test suite:\n{suite}\n\nExecution report:\n{report}"
+        analysis = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         report += "\n\nLLM analysis:\n" + analysis
         report += "\n\n" + suite
         logger.info("test_executor finished for request=%r", request[:80])

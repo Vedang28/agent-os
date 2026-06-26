@@ -1,7 +1,6 @@
 import json
 import re
 
-from agents.llm import call_llm
 from agents.prompts import LEAD_GEN_QUALIFIER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -31,16 +30,6 @@ class Qualifier:
 
         issues = self._review(result, draft)
 
-        llm_review = await call_llm(
-            task_type="long_docs",
-            system=self.SYSTEM_PROMPT,
-            user=f"Draft/Plan:\n{draft}\n\nOutput to review:\n{result}",
-        )
-        if "APPROVED" not in llm_review.upper() and llm_review.strip():
-            for line in llm_review.strip().split("\n"):
-                line = line.strip().lstrip("-•*123456789. ")
-                if line and line not in issues:
-                    issues.append(line)
 
         if issues:
             logger.info(

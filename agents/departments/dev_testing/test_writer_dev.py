@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import DEV_TESTING_WRITER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -29,10 +28,6 @@ class DevTestWriter:
             for s in critique.get("suggestions", [critique.get("reason", "")]):
                 user_prompt += f"- {s}\n"
 
-        result = await call_llm(
-            task_type="code",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("test_writer produced tests (revision=%d)", revisions)
         return {"result": result}

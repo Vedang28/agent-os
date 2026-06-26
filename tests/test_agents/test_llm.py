@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -23,7 +23,7 @@ class TestCallLlmHostRouting:
 
         with patch("agents.llm._get_host", return_value=host), \
              patch("agents.llm._call_host_tool", side_effect=mock_call_host):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 call_llm(system="test system", user="test user")
             )
             assert result == "host tool response"
@@ -40,7 +40,7 @@ class TestCallLlmHostRouting:
         with patch("agents.llm._get_host", return_value=host), \
              patch("agents.llm._call_host_tool", side_effect=failing_host), \
              patch("agents.llm._call_anthropic", side_effect=mock_anthropic):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 call_llm(system="test", user="test")
             )
             assert result == "api response"
@@ -53,7 +53,7 @@ class TestCallLlmHostRouting:
 
         with patch("agents.llm._get_host", return_value=host), \
              patch("agents.llm._call_anthropic", side_effect=mock_anthropic):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 call_llm(system="test", user="test")
             )
             assert result == "direct api"
@@ -63,7 +63,7 @@ class TestCallLlmHostRouting:
 
         with patch("agents.llm._get_host", return_value=host), \
              patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}, clear=False):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 call_llm(system="architect", user="design a schema")
             )
             assert "LLM_PLACEHOLDER" in result
@@ -72,7 +72,6 @@ class TestCallLlmHostRouting:
 
 class TestHostToolCalls:
     def test_claude_code_cli_args(self):
-        """Verify Claude Code is called with -p and --output-format text."""
         async def mock_exec(*args, **kwargs):
             mock_proc = AsyncMock()
             mock_proc.communicate = AsyncMock(return_value=(b"response text", b""))
@@ -81,7 +80,7 @@ class TestHostToolCalls:
 
         with patch("asyncio.create_subprocess_exec", side_effect=mock_exec) as mock:
             from agents.llm import _call_claude_code
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 _call_claude_code("/usr/bin/claude", "test prompt")
             )
             assert result == "response text"
@@ -99,7 +98,7 @@ class TestHostToolCalls:
 
         with patch("asyncio.create_subprocess_exec", side_effect=mock_exec) as mock:
             from agents.llm import _call_codex
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 _call_codex("/usr/bin/codex", "test prompt")
             )
             assert result == "codex output"
@@ -115,7 +114,7 @@ class TestHostToolCalls:
 
         with patch("asyncio.create_subprocess_exec", side_effect=mock_exec):
             from agents.llm import _call_claude_code
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 _call_claude_code("/usr/bin/claude", "test prompt")
             )
             assert result is None

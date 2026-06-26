@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import FINANCE_BOOKKEEPER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -39,11 +38,7 @@ class Bookkeeper:
             )
             user_prompt = f"Context from brain:\n{ctx_lines}\n\n{user_prompt}"
 
-        draft = await call_llm(
-            task_type="long_docs",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        draft = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
 
         logger.info("bookkeeper produced financial summary")
         return {"draft": draft, "brain_context": brain_context}

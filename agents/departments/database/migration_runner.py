@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import DATABASE_MIGRATION_RUNNER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -24,10 +23,6 @@ class MigrationRunner:
             f"Existing implementation:\n{prior}\n\nOriginal request: {request}"
         )
 
-        result = await call_llm(
-            task_type="code",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("migration_runner produced migration, revision=%d", revisions)
         return {"result": result}

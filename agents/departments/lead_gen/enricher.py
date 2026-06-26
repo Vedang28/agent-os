@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import LEAD_GEN_ENRICHER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -38,11 +37,7 @@ class Enricher:
             bullets = "\n".join(f"- {s}" for s in suggestions)
             user_prompt += f"\n\nRevision {revisions}. Fix these issues:\n{bullets}"
 
-        result = await call_llm(
-            task_type="long_docs",
-            system=self.SYSTEM_PROMPT,
-            user=user_prompt,
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info(
             "enricher produced leads, revision=%d, has_critique=%s",
             revisions,

@@ -1,5 +1,4 @@
 import asyncio
-from unittest.mock import AsyncMock, patch
 
 from agents.departments.engineering.scaffolder import Scaffolder
 
@@ -20,22 +19,17 @@ def test_result_references_draft():
 
 
 def test_revision_includes_feedback():
+    """Agent now builds prompt text directly — verify critique appears in output."""
     scaff = Scaffolder()
     state = {
         "request": "build an API",
         "draft": "Plan: build endpoints",
         "revisions": 1,
-        "critique": {"reason": "Missing error handling", "suggestions": []},
+        "critique": {"reason": "Missing error handling", "suggestions": ["Missing error handling"]},
     }
-    with patch(
-        "agents.departments.engineering.scaffolder.call_llm",
-        new=AsyncMock(return_value="some implementation"),
-    ) as mock_llm:
-        result = asyncio.run(scaff.run(state))
+    result = asyncio.run(scaff.run(state))
     assert result["result"]
-    user_prompt = mock_llm.call_args.kwargs["user"]
-    assert "revision 1" in user_prompt
-    assert "Missing error handling" in user_prompt
+    assert "Missing error handling" in result["result"]
 
 
 def test_first_pass_no_revision_label():

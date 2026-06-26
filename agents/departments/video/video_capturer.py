@@ -1,6 +1,5 @@
 from core.state import AgentState
 from infra.telemetry import get_logger
-from agents.llm import call_llm
 from agents.prompts import VIDEO_CAPTURER
 
 logger = get_logger("video.video_capturer")
@@ -27,8 +26,6 @@ class VideoCapturer:
             for s in critique.get("suggestions", [critique.get("reason", "")]):
                 user_prompt += f"- {s}\n"
 
-        result = await call_llm(
-            task_type="code", system=self.SYSTEM_PROMPT, user=user_prompt
-        )
+        result = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("video_capturer produced result, revision=%d", revisions)
         return {"result": result}

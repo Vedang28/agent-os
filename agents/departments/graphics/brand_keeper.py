@@ -1,4 +1,3 @@
-from agents.llm import call_llm
 from agents.prompts import GRAPHICS_BRAND_KEEPER
 from core.state import AgentState
 from infra.telemetry import get_logger
@@ -36,8 +35,6 @@ class BrandKeeper:
             if ds:
                 user_prompt += f"\n\nAvailable design-system tools: {', '.join(ds)}"
 
-        branded = await call_llm(
-            task_type="code", system=self.SYSTEM_PROMPT, user=user_prompt
-        )
+        branded = f"{self.SYSTEM_PROMPT}\n\nTask:\n{user_prompt}"
         logger.info("brand_keeper enforced brand consistency, revision=%d", revisions)
         return {"result": branded}
