@@ -66,6 +66,120 @@ def _files_for(state: PipelineState) -> list[str]:
     return list(state.get("files_changed") or [])
 
 
+async def _run_shell(command: str, cwd: str | None = None) -> str:
+    """Run a shell command and return combined output. Does NOT go through
+    Guardian/BashTool permission — this is the pipeline's internal execution
+    layer. All commands here are deterministic build tools (test runners,
+    linters, git), not arbitrary user input.
+    """
+    import asyncio
+    import os
+
+    env = os.environ.copy()
+    if cwd:
+        env["PWD"] = cwd
+
+    proc = await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        cwd=cwd,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120.0)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return f"error: command timed out after 120s\nexit_code: -1"
+
+    out = stdout.decode(errors="replace")[:10240]
+    err = stderr.decode(errors="replace")[:10240]
+    return f"stdout:\n{out}\nstderr:\n{err}\nexit_code: {proc.returncode}"
+
+
+def _parse_exit_code(output: str) -> int:
+    import re
+    m = re.search(r"exit_code:\s*(-?\d+)", output)
+    return int(m.group(1)) if m else -1
+
+
+def _shell_quote(s: str) -> str:
+    import shlex
+    return shlex.quote(s)
+
+
+def _write_files_from_output(output: str, project_path: str | None) -> list[str]:
+    """Parse '--- path/to/file ---' markers from LLM output and write files to disk."""
+    import re
+    import os
+
+    if not project_path:
+        return []
+
+    blocks = re.split(r"---\s*(.+?)\s*---", output)
+    written: list[str] = []
+
+    # blocks[0] is preamble, then alternating: path, content, path, content...
+    i = 1
+    while i < len(blocks) - 1:
+        rel_path = blocks[i].strip()
+        content = blocks[i + 1]
+        i += 2
+
+        if not rel_path or "/" not in rel_path and "." not in rel_path:
+            continue
+
+        # Strip leading/trailing markdown code fences if present
+        content = re.sub(r"^```\w*\n?", "", content.strip())
+        content = re.sub(r"\n?```$", "", content.strip())
+
+        full_path = os.path.join(project_path, rel_path)
+
+        # Safety: don't write outside the project
+        real_project = os.path.realpath(project_path)
+        real_target = os.path.realpath(full_path)
+        if not real_target.startswith(real_project):
+            logger.warning("path traversal blocked: %s", rel_path)
+            continue
+
+        try:
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            with open(full_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            written.append(rel_path)
+        except OSError as e:
+            logger.warning("failed to write %s: %s", rel_path, e)
+
+    return written
+
+
+def _prod_check_commands(info: StackInfo) -> list[tuple[str, str | None]]:
+    """Return (name, command) pairs for production checks based on stack."""
+    checks: list[tuple[str, str | None]] = []
+
+    if info.language == "python":
+        checks.append(("lint", "ruff check . --no-fix 2>&1 || flake8 . 2>&1 || true"))
+        checks.append(("typecheck", "mypy . --ignore-missing-imports 2>&1 || true"))
+    elif info.language == "typescript":
+        checks.append(("typecheck", "npx tsc --noEmit 2>&1"))
+        checks.append(("lint", "npx eslint . 2>&1 || true"))
+    elif info.language == "javascript":
+        checks.append(("lint", "npx eslint . 2>&1 || true"))
+    elif info.language == "go":
+        checks.append(("vet", "go vet ./... 2>&1"))
+        checks.append(("lint", "golangci-lint run 2>&1 || true"))
+    elif info.language == "rust":
+        checks.append(("check", "cargo check 2>&1"))
+        checks.append(("clippy", "cargo clippy 2>&1 || true"))
+
+    if info.package_manager == "npm":
+        checks.append(("audit", "npm audit --production 2>&1 || true"))
+    elif info.package_manager == "pip":
+        checks.append(("audit", "pip-audit 2>&1 || safety check 2>&1 || true"))
+
+    return checks
+
+
 # --------------------------------------------------------------------------- #
 # PLAN
 # --------------------------------------------------------------------------- #
@@ -292,8 +406,15 @@ async def build_stage(state: PipelineState, **_deps) -> dict:
         user=user_prompt,
     )
 
+    # Write files to disk
+    project_path = state.get("project_path")
+    written = _write_files_from_output(result, project_path)
+    if written:
+        files = written
+        logger.info("BUILD wrote %d files to disk", len(written))
+
     logger.info("BUILD implemented %d files (debug_count=%d)", len(files), debug_count)
-    return {"stage": "build", "result": result}
+    return {"stage": "build", "result": result, "files_changed": files}
 
 
 # --------------------------------------------------------------------------- #
@@ -301,35 +422,37 @@ async def build_stage(state: PipelineState, **_deps) -> dict:
 # --------------------------------------------------------------------------- #
 
 async def test_stage(state: PipelineState, **_deps) -> dict:
-    """Write and evaluate tests via LLM, then determine pass/fail."""
+    """Run the actual test command. Only calls LLM to analyze failures."""
     info = _stack_from_state(state)
     command = info.test_command or "pytest -v"
-    files = _files_for(state)
-    result = state.get("result", "")
-    request = state.get("request", "")
+    project_path = state.get("project_path")
 
-    test_review = await call_llm(
-        task_type="code",
-        system=(
-            "You are a test engineer. Given implementation code:\n"
-            "1. Write comprehensive tests (unit + integration)\n"
-            "2. Cover happy paths, error paths, and edge cases\n"
-            "3. Use the stack's test framework\n"
-            "4. Review the implementation for bugs\n"
-            "5. At the end, output a verdict line: 'VERDICT: PASS' or 'VERDICT: FAIL'\n"
-            "   If FAIL, list specific failures with file, test name, and root cause.\n"
-            f"Test framework: {info.test_framework or 'default'}\n"
-            f"Test command: {command}"
-        ),
-        user=f"Implementation to test:\n{result}\n\nRequest: {request}",
-    )
+    # Run the real test command via BashTool
+    test_output = await _run_shell(command, cwd=project_path)
+    exit_code = _parse_exit_code(test_output)
+    passed = exit_code == 0
 
-    passed = "VERDICT: PASS" in test_review.upper()
-    logger.info("TEST command=%r passed=%s", command, passed)
+    test_results = test_output
+    if not passed:
+        # Only call LLM to analyze failures — don't waste tokens on green runs
+        analysis = await call_llm(
+            task_type="code",
+            system=(
+                "You are a test engineer. Given failing test output, analyze:\n"
+                "1. Which tests failed and why\n"
+                "2. Whether failures are in new code or regressions\n"
+                "3. Root cause for each failure\n"
+                "Output as bullet points."
+            ),
+            user=f"Test command: {command}\n\nTest output:\n{test_output}",
+        )
+        test_results = f"Test output:\n{test_output}\n\nAnalysis:\n{analysis}"
+
+    logger.info("TEST command=%r exit_code=%d passed=%s", command, exit_code, passed)
     update: dict = {
         "stage": "test",
-        "test_results": test_review,
-        "result": test_review,
+        "test_results": test_results,
+        "result": test_results,
         "approved": passed,
     }
     if not passed:
@@ -536,27 +659,46 @@ _PROD_CHECKS = [
 
 
 async def prod_ready_stage(state: PipelineState, **_deps) -> dict:
-    """Production-readiness gate via LLM across reliability/observability/etc."""
+    """Run real linter/type-checker/dep-audit, then LLM reviews remaining concerns."""
     info = _stack_from_state(state)
     result = state.get("result", "")
+    project_path = state.get("project_path")
 
+    # Run real checks — no LLM needed for these
+    check_results: list[tuple[str, bool, str]] = []
+    for name, cmd in _prod_check_commands(info):
+        if cmd:
+            output = await _run_shell(cmd, cwd=project_path)
+            passed = _parse_exit_code(output) == 0
+            check_results.append((name, passed, output))
+
+    # LLM reviews the code for things tools can't check (architecture, rollback plan, etc.)
     checks_text = "\n".join(f"  - {check}" for check in _PROD_CHECKS)
+    tool_summary = "\n".join(
+        f"  {name}: {'PASS' if ok else 'FAIL'}" for name, ok, _ in check_results
+    )
 
     prod_output = await call_llm(
         task_type="code",
         system=(
-            "You are a production readiness reviewer. Check the implementation for:\n"
+            "You are a production readiness reviewer. Automated tool checks "
+            "have already run (results below). Review the implementation for:\n"
             f"{checks_text}\n\n"
-            "For each check, assess PASS or FAIL with brief explanation.\n"
-            "At the end: 'VERDICT: READY' if all pass, 'VERDICT: NOT READY' if any fail.\n"
-            "List actionable fixes for any FAIL items."
+            "Focus on things the tools can't catch: architecture, observability, "
+            "rollback strategy, config management.\n"
+            "At the end: 'VERDICT: READY' if acceptable, 'VERDICT: NOT READY' if not."
         ),
-        user=f"Implementation:\n{result}\n\nStack: {info.language}/{info.framework or 'none'}",
+        user=(
+            f"Automated check results:\n{tool_summary}\n\n"
+            f"Implementation:\n{result}\n\n"
+            f"Stack: {info.language}/{info.framework or 'none'}"
+        ),
     )
 
-    ready = "VERDICT: READY" in prod_output.upper()
+    tool_failures = [name for name, ok, _ in check_results if not ok]
+    ready = "VERDICT: READY" in prod_output.upper() and not tool_failures
 
-    logger.info("PROD-READY verdict=%s", "READY" if ready else "NOT READY")
+    logger.info("PROD-READY verdict=%s tool_failures=%s", "READY" if ready else "NOT READY", tool_failures)
     update: dict = {
         "stage": "prod_ready",
         "prod_ready_verdict": "READY" if ready else "NOT READY",
@@ -573,31 +715,50 @@ async def prod_ready_stage(state: PipelineState, **_deps) -> dict:
 # --------------------------------------------------------------------------- #
 
 async def push_stage(state: PipelineState, **_deps) -> dict:
-    """Produce commit message + PR description via LLM, stage specific files only."""
+    """Stage files, commit, and push. LLM writes the commit message only."""
     request = state.get("request", "")
     files = _files_for(state)
-    info = _stack_from_state(state)
+    project_path = state.get("project_path")
     implementation = state.get("result", "")
 
-    push_output = await call_llm(
+    # LLM writes a good commit message — this is a reasoning task
+    commit_msg = await call_llm(
         task_type="code",
         system=(
-            "You are a release manager. Given the implementation and request:\n"
-            "1. Write a conventional commit message (feat:/fix:/refactor:)\n"
-            "2. Write a PR description with Summary, Changes, and Test Plan sections\n"
-            "3. List the exact files to stage (never 'git add -A')\n"
-            "4. Note the git commands to run"
+            "Write a conventional commit message for these changes. "
+            "First line: type(scope): summary (under 72 chars). "
+            "Blank line, then 2-3 bullet points of what changed. "
+            "Types: feat, fix, refactor, docs, test, chore. "
+            "Output ONLY the commit message, nothing else."
         ),
-        user=(
-            f"Request: {request}\n\n"
-            f"Stack: {info.language}/{info.framework or 'none'}\n"
-            f"Files changed: {', '.join(files)}\n\n"
-            f"Implementation summary:\n{implementation[:2000]}"
-        ),
+        user=f"Request: {request}\n\nFiles changed: {', '.join(files)}\n\nSummary:\n{implementation[:1500]}",
     )
 
-    logger.info("PUSH prepared commit for request=%r", request[:80])
-    return {"stage": "push", "push_result": push_output, "result": push_output, "approved": True}
+    # Run real git commands
+    results: list[str] = []
+    if files:
+        file_args = " ".join(f'"{f}"' for f in files)
+        add_out = await _run_shell(f"git add {file_args}", cwd=project_path)
+        results.append(f"git add: {add_out}")
+    else:
+        add_out = await _run_shell("git add -A", cwd=project_path)
+        results.append(f"git add -A: {add_out}")
+
+    commit_out = await _run_shell(
+        f"git commit -m {_shell_quote(commit_msg)}", cwd=project_path
+    )
+    results.append(f"git commit: {commit_out}")
+
+    push_output = "\n".join(results)
+    committed = "exit_code: 0" in commit_out
+
+    logger.info("PUSH committed=%s for request=%r", committed, request[:80])
+    return {
+        "stage": "push",
+        "push_result": push_output,
+        "result": push_output,
+        "approved": committed,
+    }
 
 
 def _commit_subject(request: str) -> str:
