@@ -6,6 +6,8 @@ class AgentState(TypedDict, total=False):
     lane: Literal["instant", "fast", "deep"]
     plan: list[str]
     department: str
+    departments: list[str]
+    project_path: str | None
     task: dict
     draft: str | None
     result: str | None
