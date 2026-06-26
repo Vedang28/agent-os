@@ -26,7 +26,9 @@ logger = get_logger("core.pipeline.stages")
 
 class PipelineState(AgentState, total=False):
     stage: str
+    project_path: str | None
     stack_info: dict
+    codebase_context: str
     debug_source: str
     debug_count: int
     test_results: str | None
@@ -74,7 +76,7 @@ async def plan_stage(
     obsidian=None,
     tool_registry=None,
 ) -> dict:
-    """Read brain context + playbooks, detect the stack, produce a plan via LLM."""
+    """Read brain + codebase context, detect the stack, produce a plan via LLM."""
     request = state.get("request", "")
 
     brain_context: list[dict] = list(state.get("brain_context") or [])
@@ -88,27 +90,50 @@ async def plan_stage(
             brain_context.append({"title": pb.title, "content": pb.content})
 
     info = _stack_from_state(state)
+    project_path = state.get("project_path")
     if info.language == "unknown" and not state.get("stack_info"):
         import os
 
-        info = detect_stack(os.getcwd())
+        project_path = project_path or os.getcwd()
+        info = detect_stack(project_path)
+
+    # Analyze the existing codebase to understand its architecture
+    codebase_context = ""
+    if project_path:
+        try:
+            from core.codebase_analyzer import analyze_codebase, format_context
+            ctx = analyze_codebase(project_path, info)
+            codebase_context = format_context(ctx)
+        except Exception as e:
+            logger.warning("codebase analysis failed: %s", e)
 
     stack_summary = format_stack_summary(info)
     user_prompt = f"Request: {request}\n\nDetected stack:\n{stack_summary}"
+
+    if codebase_context:
+        user_prompt += f"\n\n=== EXISTING CODEBASE ANALYSIS ===\n{codebase_context}"
+
     if brain_context:
         ctx_text = "\n".join(f"- {c['title']}: {c['content'][:200]}" for c in brain_context)
-        user_prompt = f"Prior knowledge:\n{ctx_text}\n\n{user_prompt}"
+        user_prompt += f"\n\nPrior knowledge from brain:\n{ctx_text}"
 
     plan = await call_llm(
         task_type="code",
         system=(
-            "You are a software architect creating a build plan. Given a request and "
-            "detected tech stack, produce:\n"
-            "1. Component/module breakdown with file paths\n"
-            "2. Data model and API contracts\n"
-            "3. Architecture decisions (framework patterns, data layer)\n"
-            "4. Edge cases and failure modes\n"
-            "5. Scope estimate (files, complexity)\n"
+            "You are a software architect planning changes to an EXISTING codebase. "
+            "You have been given a full analysis of the current project — its directory "
+            "structure, models, routes, config, and key source files. Use this to:\n"
+            "1. Understand what the app already does and how it's structured\n"
+            "2. Follow existing patterns and conventions (naming, file layout, imports)\n"
+            "3. Identify which existing files to modify vs which new files to create\n"
+            "4. Preserve existing functionality — don't break what works\n\n"
+            "Produce a build plan with:\n"
+            "- Files to modify (with what changes)\n"
+            "- Files to create (with paths matching existing conventions)\n"
+            "- Data model changes (new tables/columns, migrations)\n"
+            "- API contracts (endpoints, request/response shapes)\n"
+            "- How the new code integrates with existing code\n"
+            "- Edge cases and failure modes\n"
             "Be specific — name every file, function signature, and data shape."
         ),
         user=user_prompt,
