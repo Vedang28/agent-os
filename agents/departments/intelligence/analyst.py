@@ -1,10 +1,16 @@
 import json
 from datetime import datetime, timezone
 
+from agents.llm import call_llm
 from core.state import AgentState
 from infra.telemetry import get_logger
 
 logger = get_logger("intelligence.analyst")
+
+SYSTEM_PROMPT = (
+    "You are an intelligence analyst. Take the scout's research brief and produce "
+    "a detailed analysis with insights, patterns, and actionable recommendations."
+)
 
 
 class Analyst:
@@ -16,6 +22,7 @@ class Analyst:
 
     async def run(self, state: AgentState) -> AgentState:
         draft = state.get("draft", "")
+        request = state.get("request", "")
         revisions = state.get("revisions", 0)
         critique = state.get("critique")
 
@@ -28,10 +35,20 @@ class Analyst:
             reason = critique.get("reason", "") if isinstance(critique, dict) else ""
             items = self._apply_feedback(items, reason)
 
+        user_prompt = f"Request: {request}\n\nScout research brief:\n{draft}"
+        if critique and revisions > 0:
+            reason = critique.get("reason", "") if isinstance(critique, dict) else ""
+            user_prompt += f"\n\nThis is revision {revisions}. Address this critique:\n{reason}"
+
+        analysis = await call_llm(
+            task_type="long_docs", system=SYSTEM_PROMPT, user=user_prompt
+        )
+
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         briefing = {
             "title": f"Daily Briefing — {today}",
             "items": items,
+            "analysis": analysis,
             "cross_references": [],
             "actionable_insights": [
                 item.get("relevance", "") for item in items if item.get("relevance")

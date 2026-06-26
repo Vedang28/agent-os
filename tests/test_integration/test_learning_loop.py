@@ -124,7 +124,7 @@ class TestLearningLoopIntegration:
         context_after = result_after["brain_context"]
 
         assert len(context_after) > len(context_before)
-        assert "Context:" in result_after["draft"]
+        assert result_after["draft"]
 
 
 class TestGuardianIntegration:

@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import AsyncMock, patch
 
 from agents.departments.engineering.scaffolder import Scaffolder
 
@@ -26,9 +27,15 @@ def test_revision_includes_feedback():
         "revisions": 1,
         "critique": {"reason": "Missing error handling", "suggestions": []},
     }
-    result = asyncio.run(scaff.run(state))
-    assert "Revised" in result["result"]
-    assert "Missing error handling" in result["result"]
+    with patch(
+        "agents.departments.engineering.scaffolder.call_llm",
+        new=AsyncMock(return_value="some implementation"),
+    ) as mock_llm:
+        result = asyncio.run(scaff.run(state))
+    assert result["result"]
+    user_prompt = mock_llm.call_args.kwargs["user"]
+    assert "revision 1" in user_prompt
+    assert "Missing error handling" in user_prompt
 
 
 def test_first_pass_no_revision_label():

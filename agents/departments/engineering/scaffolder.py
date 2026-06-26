@@ -1,3 +1,5 @@
+from agents.llm import call_llm
+from agents.prompts import ENGINEERING_SCAFFOLDER
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -5,6 +7,7 @@ logger = get_logger("engineering.scaffolder")
 
 
 class Scaffolder:
+    SYSTEM_PROMPT = ENGINEERING_SCAFFOLDER
     name = "engineering.scaffolder"
     role = "worker"
 
@@ -23,18 +26,18 @@ class Scaffolder:
             if github_tools:
                 integration_context = f"\nAvailable GitHub tools: {', '.join(github_tools)}"
 
+        user_prompt = f"Request: {request}\n\nArchitect's plan:\n{draft}"
         if critique and revisions > 0:
-            result = f"Revised implementation (revision {revisions}):\n"
-            result += f"Based on: {draft}\n"
-            result += f"Addressing feedback: {critique.get('reason', '')}\n"
-            result += f"Implementation for: {request}"
-        else:
-            result = f"Implementation:\n"
-            result += f"Based on: {draft}\n"
-            result += f"Implementation for: {request}"
-
+            user_prompt += (
+                f"\n\nThis is revision {revisions}. Address this critique:\n"
+                f"{critique.get('reason', '')}"
+            )
         if integration_context:
-            result += integration_context
+            user_prompt += integration_context
+
+        result = await call_llm(
+            task_type="code", system=self.SYSTEM_PROMPT, user=user_prompt
+        )
 
         logger.info(
             "scaffolder produced result, revision=%d", revisions

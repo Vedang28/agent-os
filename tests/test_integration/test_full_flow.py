@@ -37,7 +37,6 @@ def test_deep_request_full_flow():
     assert result["department"] == "engineering"
     assert result["approved"] is True
     assert result["result"]
-    assert "Implementation" in result["result"]
 
 
 def test_instant_short_circuits_company():

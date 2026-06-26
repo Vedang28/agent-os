@@ -1,9 +1,16 @@
 import json
 
+from agents.llm import call_llm
 from core.state import AgentState
 from infra.telemetry import get_logger
 
 logger = get_logger("intelligence.scout")
+
+SYSTEM_PROMPT = (
+    "You are an intelligence scout. Research the topic thoroughly. Query brain "
+    "for context, identify key trends, gather data from available sources. "
+    "Produce a comprehensive research brief."
+)
 
 _STUB_ITEMS = [
     {
@@ -71,12 +78,30 @@ class Scout:
                 except Exception:
                     logger.warning("failed to read slack, continuing without it")
 
+        user_prompt = f"Research request: {request}"
+        if brain_context:
+            context_text = "\n".join(
+                f"- {ctx['title']}: {ctx['content'][:200]}" for ctx in brain_context
+            )
+            user_prompt = f"Known context from brain:\n{context_text}\n\n{user_prompt}"
+
+        research_brief = await call_llm(
+            task_type="long_docs", system=SYSTEM_PROMPT, user=user_prompt
+        )
+        items.append({
+            "title": f"Research brief: {request[:60]}",
+            "source": "intelligence.scout",
+            "summary": research_brief[:1000],
+            "url": "",
+            "relevance": "LLM-synthesized research for the request.",
+        })
+
         draft = json.dumps(items, indent=2)
 
         logger.info(
             "scout produced %d items (filtered %d known)",
             len(items),
-            len(_STUB_ITEMS) - len(items),
+            len(_STUB_ITEMS) - (len(items) - 1),
         )
         return {
             "draft": draft,

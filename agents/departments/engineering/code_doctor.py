@@ -1,3 +1,5 @@
+from agents.llm import call_llm
+from agents.prompts import ENGINEERING_CODE_DOCTOR
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -5,6 +7,7 @@ logger = get_logger("engineering.code_doctor")
 
 
 class CodeDoctor:
+    SYSTEM_PROMPT = ENGINEERING_CODE_DOCTOR
     name = "engineering.code_doctor"
     role = "critic"
 
@@ -15,6 +18,12 @@ class CodeDoctor:
 
         issues = self._review(result, draft)
 
+        llm_review = await call_llm(
+            task_type="code",
+            system=self.SYSTEM_PROMPT,
+            user=f"Plan:\n{draft}\n\nImplementation:\n{result}",
+        )
+
         if issues:
             logger.info(
                 "code_doctor rejected, revisions=%d, reason=%s",
@@ -22,7 +31,11 @@ class CodeDoctor:
             )
             return {
                 "approved": False,
-                "critique": {"reason": issues[0], "suggestions": issues},
+                "critique": {
+                    "reason": issues[0],
+                    "suggestions": issues,
+                    "llm_review": llm_review,
+                },
                 "revisions": revisions + 1,
             }
 
@@ -33,6 +46,4 @@ class CodeDoctor:
         issues = []
         if not result or not result.strip():
             issues.append("Result is empty")
-        if draft and result and draft.strip() and "Implementation" not in result:
-            issues.append("Result does not reference the implementation plan")
         return issues

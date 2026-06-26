@@ -1,3 +1,5 @@
+from agents.llm import call_llm
+from agents.prompts import ENGINEERING_ARCHITECT
 from core.state import AgentState
 from infra.telemetry import get_logger
 
@@ -5,6 +7,7 @@ logger = get_logger("engineering.architect")
 
 
 class Architect:
+    SYSTEM_PROMPT = ENGINEERING_ARCHITECT
     name = "engineering.architect"
     role = "proposer"
 
@@ -29,19 +32,18 @@ class Architect:
             for pb in playbooks:
                 brain_context.append({"title": pb.title, "content": pb.content})
 
-        draft = f"Plan for: {request}\n"
+        user_prompt = f"Request: {request}"
         if brain_context:
-            draft += "Context:\n"
-            for ctx in brain_context:
-                draft += f"- {ctx['title']}\n"
-        draft += "Steps:\n"
-        draft += "1. Analyze requirements\n"
-        draft += "2. Design solution architecture\n"
-        draft += "3. Implement core logic\n"
-        draft += "4. Write tests\n"
-        draft += "5. Review and refine"
+            context_text = "\n".join(
+                f"- {ctx['title']}: {ctx['content'][:200]}" for ctx in brain_context
+            )
+            user_prompt = f"Context from brain:\n{context_text}\n\n{user_prompt}"
 
-        logger.info("architect produced draft for request=%r", request[:80])
+        draft = await call_llm(
+            task_type="code", system=self.SYSTEM_PROMPT, user=user_prompt
+        )
+
+        logger.info("architect produced plan for request=%r", request[:80])
         return {
             "draft": draft,
             "brain_context": brain_context,
