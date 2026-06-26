@@ -1,8 +1,14 @@
 """LLM integration layer for agents.
 
-Provides ``call_llm()`` — a unified async function that routes through the
-model router and calls the appropriate provider (Anthropic, Google, or local
-Ollama) via httpx.  Every agent calls this instead of producing hardcoded text.
+Routes through the user's AI coding tool (Claude Code, Codex, Cursor, etc.)
+when available, falls back to direct API calls only when no host tool is
+detected.
+
+Priority:
+  1. Host coding tool (claude, codex, cursor, etc.) — uses the user's
+     existing auth, billing, and model selection
+  2. Direct API (Anthropic, Google, Ollama) — requires API keys in env vars
+  3. Placeholder — structured text so the pipeline doesn't crash
 
 Usage inside an agent::
 
@@ -22,17 +28,35 @@ Usage inside an agent::
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 
 import httpx
 
+from agents.host_detector import HostTool, detect_host
 from infra.model_router import route
 from infra.telemetry import get_logger
 
 logger = get_logger("agents.llm")
 
 _TIMEOUT = 120.0
+
+# Cache the detected host so we don't re-detect every call
+_host: HostTool | None = None
+
+
+def _get_host() -> HostTool:
+    global _host
+    if _host is None:
+        _host = detect_host()
+    return _host
+
+
+def reset_host():
+    """Reset cached host detection (for testing)."""
+    global _host
+    _host = None
 
 
 async def call_llm(
@@ -43,11 +67,21 @@ async def call_llm(
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> str:
-    """Call an LLM through the model router.
+    """Call an LLM — through the host tool if available, else direct API.
 
-    Returns the assistant's text response.  Raises on HTTP/provider errors
-    so callers can handle or let LangGraph retry.
+    Returns the assistant's text response. Raises on errors so callers can
+    handle or let LangGraph retry.
     """
+    host = _get_host()
+
+    # Priority 1: Use the host coding tool
+    if host.available and host.cli:
+        result = await _call_host_tool(host, system, user)
+        if result is not None:
+            return result
+        logger.warning("host tool %s failed, falling back to direct API", host.name)
+
+    # Priority 2: Direct API calls
     config = route(task_type)
     _max = max_tokens or config.max_tokens
     _temp = temperature if temperature is not None else config.temperature
@@ -61,6 +95,94 @@ async def call_llm(
     else:
         raise ValueError(f"Unknown provider: {config.provider}")
 
+
+# -------------------------------------------------------------------
+# Host tool execution
+# -------------------------------------------------------------------
+
+async def _call_host_tool(host: HostTool, system: str, user: str) -> str | None:
+    """Delegate to the user's coding tool CLI."""
+    prompt = f"{system}\n\n{user}"
+
+    try:
+        if host.name == "claude_code":
+            return await _call_claude_code(host.cli, prompt)
+        elif host.name == "codex":
+            return await _call_codex(host.cli, prompt)
+        elif host.name == "aider":
+            return await _call_aider(host.cli, prompt)
+        else:
+            return await _call_generic_cli(host.cli, prompt)
+    except Exception as e:
+        logger.warning("host tool %s error: %s", host.name, e)
+        return None
+
+
+async def _call_claude_code(cli: str, prompt: str) -> str:
+    """Call Claude Code CLI: claude -p 'prompt' --output-format text"""
+    proc = await asyncio.create_subprocess_exec(
+        cli, "-p", prompt, "--output-format", "text",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300.0)
+
+    if proc.returncode != 0:
+        err = stderr.decode(errors="replace")[:500]
+        logger.warning("claude code exit %d: %s", proc.returncode, err)
+        return None
+
+    return stdout.decode(errors="replace").strip()
+
+
+async def _call_codex(cli: str, prompt: str) -> str:
+    """Call Codex CLI: codex -q 'prompt'"""
+    proc = await asyncio.create_subprocess_exec(
+        cli, "-q", prompt,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300.0)
+
+    if proc.returncode != 0:
+        return None
+
+    return stdout.decode(errors="replace").strip()
+
+
+async def _call_aider(cli: str, prompt: str) -> str:
+    """Call Aider: aider --message 'prompt' --yes --no-auto-commits"""
+    proc = await asyncio.create_subprocess_exec(
+        cli, "--message", prompt, "--yes", "--no-auto-commits",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300.0)
+
+    if proc.returncode != 0:
+        return None
+
+    return stdout.decode(errors="replace").strip()
+
+
+async def _call_generic_cli(cli: str, prompt: str) -> str:
+    """Generic fallback: cli 'prompt'"""
+    proc = await asyncio.create_subprocess_exec(
+        cli, prompt,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300.0)
+
+    if proc.returncode != 0:
+        return None
+
+    return stdout.decode(errors="replace").strip()
+
+
+# -------------------------------------------------------------------
+# Direct API calls (fallback when no host tool)
+# -------------------------------------------------------------------
 
 async def _call_anthropic(config, system: str, user: str, max_tokens: int, temperature: float) -> str:
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
@@ -156,14 +278,9 @@ async def _call_ollama(config, system: str, user: str, max_tokens: int, temperat
 
 
 def _placeholder(system: str, user: str) -> str:
-    """Fallback when no API key is configured.
-
-    Returns a structured placeholder that downstream agents can still parse,
-    so the pipeline doesn't crash in development/testing.  The placeholder
-    clearly marks itself as AI-generated-pending so critics catch it.
-    """
+    """Fallback when no host tool and no API key configured."""
     return (
-        f"[LLM_PLACEHOLDER — no API key configured]\n"
+        f"[LLM_PLACEHOLDER — no AI coding tool or API key detected]\n"
         f"System role: {system[:200]}\n"
         f"Request: {user[:500]}\n"
         f"--- This output needs a real LLM call to be useful. ---"
